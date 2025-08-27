@@ -35,6 +35,7 @@ def main():
     parser.add_argument("images_directory", help="The directory containing the storyboard images.")
     parser.add_argument("--project", help="Your Google Cloud project ID.", required=True)
     parser.add_argument("--location", help="The Google Cloud location.", default="us-central1")
+    parser.add_argument("--scene", help="The scene number to generate videos for.", type=int)
     args = parser.parse_args()
 
     try:
@@ -48,6 +49,9 @@ def main():
     shots = shot_regex.findall(storyboard_content)
 
     for scene_number, shot_number, shot_description in shots:
+        if args.scene is not None and int(scene_number) != args.scene:
+            continue
+
         image_name = f"scene_{scene_number}_shot_{shot_number}.png"
         image_path = os.path.join(args.images_directory, image_name)
 
