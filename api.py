@@ -1,8 +1,12 @@
-from fastapi import FastAPI, UploadFile, File, BackgroundTasks, Form
+from fastapi import FastAPI, UploadFile, File, BackgroundTasks, Form, Request
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 import os
 import json
 import re
+import asyncio
+import uuid
+from threading import Lock
 import vertexai
 from vertexai.generative_models import GenerativeModel, Part
 from vertexai.preview.vision_models import ImageGenerationModel
@@ -10,6 +14,10 @@ from google.cloud import texttospeech
 import ffmpeg
 
 app = FastAPI()
+
+# --- Progress Tracking ---
+progress_data = {}
+progress_lock = Lock()
 
 # --- TASKS ---
 
@@ -169,41 +177,53 @@ def generate_screenplay_and_storyboard_task(narrative_schema, project, location,
     with open(storyboard_path, "w") as f:
         f.write(storyboard)
 
-def generate_visual_assets_task(schema_path, storyboard_path, project, location):
-    """Generates visual assets for the film."""
+def generate_visual_assets_task(task_id: str, schema_path: str, storyboard_path: str, project: str, location: str):
+    """Generates visual assets for the film and updates progress."""
+    def update_progress(message: str):
+        with progress_lock:
+            progress_data[task_id] = {"message": message}
+
     try:
         with open(schema_path, "r") as f:
             narrative_schema = json.load(f)
-    except (FileNotFoundError, json.JSONDecodeError) as e:
-        print(f"Error: Failed to read or parse schema file: {e}")
-        return
-
-    try:
         with open(storyboard_path, "r") as f:
             storyboard_content = f.read()
-    except FileNotFoundError:
-        print(f"Error: Storyboard file not found at {storyboard_path}")
-        return
 
-    # Generate character model sheets
-    for character in narrative_schema["characters"]:
-        generate_character_model_sheet(character, project, location)
+        characters = narrative_schema.get("characters", [])
+        locations = set(scene.get("setting", "Unknown") for scene in narrative_schema.get("scenes", []))
+        shot_regex = re.compile(r"SCENE (\d+), SHOT (\d+):\n(.*?)(?=\nSCENE|\Z)", re.DOTALL)
+        shots = shot_regex.findall(storyboard_content)
 
-    # Generate environment plates
-    locations = set(scene["setting"] for scene in narrative_schema["scenes"])
-    for location_name in locations:
-        generate_environment_plate(location_name, project, location)
+        total_assets = len(characters) + len(locations) + len(shots)
+        completed_assets = 0
 
-    # Generate storyboard images
-    shot_regex = re.compile(r"SCENE (\d+), SHOT (\d+):\n(.*?)(?=\nSCENE|\Z)", re.DOTALL)
-    shots = shot_regex.findall(storyboard_content)
+        # Generate character model sheets
+        for character in characters:
+            completed_assets += 1
+            update_progress(f"({completed_assets}/{total_assets}) Generating model sheet for {character['name']}...")
+            generate_character_model_sheet(character, project, location)
 
-    for scene_number, shot_number, shot_description in shots:
-        generate_storyboard_image(shot_description.strip(), scene_number, shot_number, project, location)
+        # Generate environment plates
+        for location_name in locations:
+            completed_assets += 1
+            update_progress(f"({completed_assets}/{total_assets}) Generating environment plate for {location_name}...")
+            generate_environment_plate(location_name, project, location)
+
+        # Generate storyboard images
+        for scene_number, shot_number, shot_description in shots:
+            completed_assets += 1
+            update_progress(f"({completed_assets}/{total_assets}) Generating image for Scene {scene_number}, Shot {shot_number}...")
+            generate_storyboard_image(shot_description.strip(), scene_number, shot_number, project, location)
+
+        with progress_lock:
+            progress_data[task_id]["complete"] = True
+
+    except Exception as e:
+        with progress_lock:
+            progress_data[task_id] = {"message": f"Error: {e}", "complete": True}
 
 def generate_character_model_sheet(character, project, location):
     """Generates a character model sheet using Imagen."""
-    print(f"Generating model sheet for {character['name']}...")
     vertexai.init(project=project, location=location)
     model = ImageGenerationModel.from_pretrained("imagen-3.0-fast-generate-001")
 
@@ -214,20 +234,15 @@ def generate_character_model_sheet(character, project, location):
         f"Art style: 3D cartoon animation."
     )
 
-    images = model.generate_images(
-        prompt=prompt,
-        number_of_images=1,
-    )
+    images = model.generate_images(prompt=prompt, number_of_images=1)
 
     image_path = os.path.join("output", "storyboard_images", f"character_{character['name'].lower().replace(' ', '_')}.png")
     os.makedirs(os.path.dirname(image_path), exist_ok=True)
     images[0].save(location=image_path, include_generation_parameters=True)
-    print(f"Saved character model sheet to {image_path}")
     return image_path
 
 def generate_environment_plate(location_name, project, location):
     """Generates an environment plate using Imagen."""
-    print(f"Generating environment plate for {location_name}...")
     vertexai.init(project=project, location=location)
     model = ImageGenerationModel.from_pretrained("imagen-3.0-fast-generate-001")
 
@@ -236,63 +251,63 @@ def generate_environment_plate(location_name, project, location):
         f"Art style: 3D cartoon animation, cinematic lighting."
     )
 
-    images = model.generate_images(
-        prompt=prompt,
-        number_of_images=1,
-        aspect_ratio="16:9"
-    )
+    images = model.generate_images(prompt=prompt, number_of_images=1, aspect_ratio="16:9")
 
     image_path = os.path.join("output", "storyboard_images", f"environment_{location_name.lower().replace(' ', '_')}.png")
     os.makedirs(os.path.dirname(image_path), exist_ok=True)
     images[0].save(location=image_path, include_generation_parameters=True)
-    print(f"Saved environment plate to {image_path}")
     return image_path
 
 def generate_storyboard_image(shot_description, scene_number, shot_number, project, location):
     """Generates a storyboard image from a shot description using Imagen."""
-    print(f"Generating image for Scene {scene_number}, Shot {shot_number}...")
     vertexai.init(project=project, location=location)
     model = ImageGenerationModel.from_pretrained("imagen-3.0-fast-generate-001")
 
-    # TODO: Implement character and style locking using reference images.
-    # This would involve passing reference_image IDs to the generate_images call.
-
-    images = model.generate_images(
-        prompt=shot_description,
-        number_of_images=1,
-        aspect_ratio="16:9"
-    )
+    images = model.generate_images(prompt=shot_description, number_of_images=1, aspect_ratio="16:9")
 
     image_path = os.path.join("output", "storyboard_images", f"scene_{scene_number}_shot_{shot_number}.png")
     os.makedirs(os.path.dirname(image_path), exist_ok=True)
     images[0].save(location=image_path, include_generation_parameters=True)
-    print(f"Saved storyboard image to {image_path}")
     return image_path
 
-def generate_video_synthesis_task(storyboard_path, images_directory, project, location):
-    """Generates video clips from storyboard images."""
+def generate_video_synthesis_task(task_id: str, storyboard_path: str, images_directory: str, project: str, location: str):
+    """Generates video clips from storyboard images and updates progress."""
+    def update_progress(message: str):
+        with progress_lock:
+            progress_data[task_id] = {"message": message}
+
     try:
         with open(storyboard_path, "r") as f:
             storyboard_content = f.read()
-    except FileNotFoundError:
-        print(f"Error: Storyboard file not found at {storyboard_path}")
-        return
 
-    shot_regex = re.compile(r"SCENE (\d+), SHOT (\d+):\n(.*?)(?=\nSCENE|\Z)", re.DOTALL)
-    shots = shot_regex.findall(storyboard_content)
+        shot_regex = re.compile(r"SCENE (\d+), SHOT (\d+):\n(.*?)(?=\nSCENE|\Z)", re.DOTALL)
+        shots = shot_regex.findall(storyboard_content)
+        total_shots = len(shots)
+        completed_shots = 0
 
-    for scene_number, shot_number, shot_description in shots:
-        image_name = f"scene_{scene_number}_shot_{shot_number}.png"
-        image_path = os.path.join(images_directory, image_name)
+        for scene_number, shot_number, shot_description in shots:
+            completed_shots += 1
+            update_progress(f"({completed_shots}/{total_shots}) Synthesizing video for Scene {scene_number}, Shot {shot_number}...")
 
-        if os.path.exists(image_path):
-            generate_video_clip(shot_description.strip(), image_path, scene_number, shot_number, project, location)
-        else:
-            print(f"Warning: Image not found for Scene {scene_number}, Shot {shot_number} at {image_path}")
+            image_name = f"scene_{scene_number}_shot_{shot_number}.png"
+            image_path = os.path.join(images_directory, image_name)
+
+            if os.path.exists(image_path):
+                generate_video_clip(shot_description.strip(), image_path, scene_number, shot_number, project, location)
+            else:
+                # This will be reported back to the user in the progress stream
+                update_progress(f"Warning: Image not found for Scene {scene_number}, Shot {shot_number}. Skipping video generation.")
+
+        with progress_lock:
+            progress_data[task_id]["complete"] = True
+
+    except Exception as e:
+        with progress_lock:
+            progress_data[task_id] = {"message": f"Error: {e}", "complete": True}
+
 
 def generate_video_clip(shot_description, image_path, scene_number, shot_number, project, location):
     """Generates a video clip from an image and a description using Veo."""
-    print(f"Generating video for Scene {scene_number}, Shot {shot_number}...")
     vertexai.init(project=project, location=location)
     model = GenerativeModel("veo-3.0-fast-generate-001")
 
@@ -303,18 +318,15 @@ def generate_video_clip(shot_description, image_path, scene_number, shot_number,
 
     response = model.generate_content(
         [image_part, shot_description],
-        generation_config={
-            "video_length_sec": 8,
-            "aspect_ratio": "16:9"
-        }
+        generation_config={"video_length_sec": 8, "aspect_ratio": "16:9"}
     )
     videos = response.candidates
 
     video_path = os.path.join("output", "video_clips", f"scene_{scene_number}_shot_{shot_number}.mp4")
+    os.makedirs(os.path.dirname(video_path), exist_ok=True)
     with open(video_path, "wb") as video_file:
         video_file.write(videos[0].content.data)
 
-    print(f"Saved video clip to {video_path}")
     return video_path
 
 
@@ -454,6 +466,35 @@ def assemble_film_task(
 
     print(f"Final film assembled at {final_output_path}")
 
+# --- PROGRESS STREAM ENDPOINT ---
+
+async def progress_stream_generator(task_id: str):
+    """Yields progress updates for a given task_id."""
+    last_message = None
+    while True:
+        with progress_lock:
+            task_progress = progress_data.get(task_id, {})
+            message = task_progress.get("message")
+            complete = task_progress.get("complete", False)
+
+        if message and message != last_message:
+            yield f"data: {json.dumps({'message': message})}\n\n"
+            last_message = message
+
+        if complete:
+            yield f"data: {json.dumps({'message': 'Task completed.', 'complete': True})}\n\n"
+            # Clean up the task from memory
+            with progress_lock:
+                if task_id in progress_data:
+                    del progress_data[task_id]
+            break
+        await asyncio.sleep(1)
+
+@app.get("/progress/{task_id}")
+async def progress_stream(task_id: str):
+    return StreamingResponse(progress_stream_generator(task_id), media_type="text/event-stream")
+
+
 # --- REQUEST MODELS ---
 
 class ScreenplayStoryboardRequest(BaseModel):
@@ -537,13 +578,21 @@ async def screenplay_and_storyboard_endpoint(request: ScreenplayStoryboardReques
 
 @app.post("/visual_asset_generation")
 async def visual_asset_generation_endpoint(request: VisualAssetGenerationRequest, background_tasks: BackgroundTasks):
-    background_tasks.add_task(generate_visual_assets_task, request.schema_path, request.storyboard_path, request.project_id, request.location)
-    return {"message": "Visual asset generation started in the background."}
+    task_id = str(uuid.uuid4())
+    with progress_lock:
+        progress_data[task_id] = {"message": "Initializing asset generation...", "complete": False}
+
+    background_tasks.add_task(generate_visual_assets_task, task_id, request.schema_path, request.storyboard_path, request.project_id, request.location)
+    return {"message": "Visual asset generation started.", "task_id": task_id}
 
 @app.post("/video_synthesis")
 async def video_synthesis_endpoint(request: VideoSynthesisRequest, background_tasks: BackgroundTasks):
-    background_tasks.add_task(generate_video_synthesis_task, request.storyboard_path, request.images_directory, request.project_id, request.location)
-    return {"message": "Video synthesis started in the background."}
+    task_id = str(uuid.uuid4())
+    with progress_lock:
+        progress_data[task_id] = {"message": "Initializing video synthesis...", "complete": False}
+
+    background_tasks.add_task(generate_video_synthesis_task, task_id, request.storyboard_path, request.images_directory, request.project_id, request.location)
+    return {"message": "Video synthesis started.", "task_id": task_id}
 
 @app.post("/soundtrack_generation")
 async def soundtrack_generation_endpoint(request: SoundtrackGenerationRequest, background_tasks: BackgroundTasks):

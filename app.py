@@ -22,6 +22,43 @@ PRICING = {
 }
 
 # --- Helper Functions ---
+def display_progress(task_id: str):
+    """Connects to the backend SSE stream and displays progress."""
+    progress_bar = st.progress(0)
+    progress_text = st.empty()
+
+    url = f"http://backend:8000/progress/{task_id}"
+    try:
+        with requests.get(url, stream=True) as r:
+            r.raise_for_status()
+            for line in r.iter_lines():
+                if line:
+                    decoded_line = line.decode('utf-8')
+                    if decoded_line.startswith('data:'):
+                        try:
+                            data = json.loads(decoded_line[5:])
+                            message = data.get("message", "")
+
+                            # Update progress text
+                            progress_text.info(message)
+
+                            # Update progress bar (extracts percentage from message)
+                            match = re.search(r"\((\d+)/(\d+)\)", message)
+                            if match:
+                                current, total = map(int, match.groups())
+                                progress_bar.progress(current / total)
+
+                            if data.get("complete"):
+                                progress_text.success("Generation complete! Refreshing...")
+                                progress_bar.progress(1.0)
+                                st.rerun()
+                        except json.JSONDecodeError:
+                            # Handle cases where the line is not valid JSON
+                            pass
+    except requests.exceptions.RequestException as e:
+        st.error(f"Failed to connect to the progress stream: {e}")
+
+
 def create_project_zip(project_name):
     """Creates a zip archive of the project's output files, excluding temp/archives."""
     now = datetime.now().strftime("%Y%m%d_%H%M%S")
@@ -384,24 +421,29 @@ with tab3:
                 st.warning(f"Could not calculate cost estimate: {e}")
 
     if st.button("Generate Visual Assets", disabled=not st.session_state.pipeline_state["screenplay_generated"]):
-        with st.spinner("Sending request for visual asset generation..."):
-            response = requests.post(
-                "http://backend:8000/visual_asset_generation",
-                json={
-                    "schema_path": st.session_state.paths['schema'],
-                    "storyboard_path": st.session_state.paths['storyboard'],
-                    "project_id": st.session_state.project_id
-                }
-            )
+        response = requests.post(
+            "http://backend:8000/visual_asset_generation",
+            json={
+                "schema_path": st.session_state.paths['schema'],
+                "storyboard_path": st.session_state.paths['storyboard'],
+                "project_id": st.session_state.project_id
+            }
+        )
 
-            if response.status_code == 200:
+        if response.status_code == 200:
+            response_data = response.json()
+            task_id = response_data.get("task_id")
+            if task_id:
                 st.session_state.pipeline_state["assets_generated"] = True
                 if st.session_state.project_name:
                     save_project(st.session_state.project_name, st.session_state.to_dict())
-                st.success("Visual asset generation started successfully!")
-                st.rerun()
+
+                # Call the progress display function
+                display_progress(task_id)
             else:
-                st.error(f"Failed to start visual asset generation: {response.text}")
+                st.error(f"Failed to get task ID from backend: {response.text}")
+        else:
+            st.error(f"Failed to start visual asset generation: {response.text}")
 
     if st.session_state.pipeline_state["assets_generated"]:
         st.subheader("Generated Visual Assets")
@@ -492,24 +534,29 @@ with tab4:
                 st.warning(f"Could not calculate cost estimate: {e}")
 
     if st.button("Synthesize Video Clips", disabled=not st.session_state.pipeline_state["assets_generated"]):
-        with st.spinner("Sending request for video synthesis..."):
-            response = requests.post(
-                "http://backend:8000/video_synthesis",
-                json={
-                    "storyboard_path": st.session_state.paths['storyboard'],
-                    "images_directory": "output/storyboard_images",
-                    "project_id": st.session_state.project_id
-                }
-            )
+        response = requests.post(
+            "http://backend:8000/video_synthesis",
+            json={
+                "storyboard_path": st.session_state.paths['storyboard'],
+                "images_directory": "output/storyboard_images",
+                "project_id": st.session_state.project_id
+            }
+        )
 
-            if response.status_code == 200:
+        if response.status_code == 200:
+            response_data = response.json()
+            task_id = response_data.get("task_id")
+            if task_id:
                 st.session_state.pipeline_state["video_synthesized"] = True
                 if st.session_state.project_name:
                     save_project(st.session_state.project_name, st.session_state.to_dict())
-                st.success("Video synthesis started successfully!")
-                st.rerun()
+
+                # Call the progress display function
+                display_progress(task_id)
             else:
-                st.error(f"Failed to start video synthesis: {response.text}")
+                st.error(f"Failed to get task ID from backend: {response.text}")
+        else:
+            st.error(f"Failed to start video synthesis: {response.text}")
 
     if st.session_state.pipeline_state["video_synthesized"]:
         st.subheader("Generated Video Clips")
