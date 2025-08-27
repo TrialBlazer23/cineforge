@@ -30,6 +30,7 @@ def deconstruct_narrative(story_content, project, location):
     # Second prompt for hierarchical outline
     prompt2 = f"""
     Based on the following summary and key elements, generate a hierarchical outline of the story.
+    For each character and location, provide a detailed visual description. This should include physical attributes, clothing, typical expressions, and any other details that would help in generating consistent images.
     Break the overall plot into a sequence of distinct scenes, each with a brief summary of its constituent beats.
     The final output must be a consistent, parsable JSON object.
 
@@ -40,11 +41,17 @@ def deconstruct_narrative(story_content, project, location):
       "characters": [
         {{
           "name": "Elara",
-          "description": "A stoic survivor in her late 20s, resourceful and cautious, with a hidden past."
+          "description": "A stoic survivor in her late 20s, with piercing blue eyes, a weathered face, and a scar across her left eyebrow. She wears practical, patched-up clothing suited for the harsh environment: a dusty leather jacket, cargo pants, and sturdy boots. Her expression is typically one of cautious vigilance."
         }},
         {{
           "name": "Kael",
-          "description": "An aging, cynical scavenger who knows the secrets of the wasteland."
+          "description": "An aging, cynical scavenger in his early 60s, with a grizzled beard, and a perpetual squint from years in the sun. He is often seen in a tattered duster coat and carries a modified energy rifle. His face is etched with the lines of past hardships, but his eyes still hold a spark of cunning."
+        }}
+      ],
+      "locations": [
+        {{
+            "name": "The Dustbowl Outpost",
+            "description": "A ramshackle settlement built from salvaged metal and scrap. The central marketplace is a chaotic maze of stalls, lit by flickering neon signs and powered by a sputtering generator. The air is thick with the smell of ozone and roasted strange meats."
         }}
       ],
       "scenes": []
