@@ -1,0 +1,8 @@
+{
+    "styles": {
+        "cinematic-anime": "cinematic anime, epic, detailed, beautiful, expressive, vibrant colors",
+        "classic-disney": "classic disney animation, hand-drawn, whimsical, expressive, vibrant colors",
+        "photorealistic": "photorealistic, cinematic, epic, detailed, beautiful, expressive",
+        "3d-cartoon": "3D cartoon animation, detailed, expressive"
+    }
+}

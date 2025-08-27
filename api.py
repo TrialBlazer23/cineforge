@@ -1,616 +1,242 @@
-from fastapi import FastAPI, UploadFile, File, BackgroundTasks, Form, Request
-from fastapi.responses import StreamingResponse
-from pydantic import BaseModel
+
 import os
-import json
-import re
-import asyncio
-import uuid
-from threading import Lock
 import vertexai
-from vertexai.generative_models import GenerativeModel, Part
-from vertexai.preview.vision_models import ImageGenerationModel
-from google.cloud import texttospeech
-import ffmpeg
+from vertexai.preview.generative_models import GenerativeModel, Part
+import vertexai.preview.generative_models as generative_models
+from vertexai.vision_models import ImageGenerationModel
 
-app = FastAPI()
-
-# --- Progress Tracking ---
-progress_data = {}
-progress_lock = Lock()
-
-# --- TASKS ---
-
-def deconstruct_narrative_task(story_content: str, project: str, location: str, output_path: str):
-    """
-    Deconstructs the narrative from the story content using the Gemini API.
-    """
+# Narrative Deconstruction
+def deconstruct_narrative(story_file, project, location):
+    """Deconstructs a narrative into a structured schema using Gemini."""
     vertexai.init(project=project, location=location)
     model = GenerativeModel("gemini-2.5-pro")
 
-    # First prompt for summarization and key element extraction
-    prompt1 = f"""
-    Analyze the following story and provide a summary, a list of primary characters with brief descriptions, key locations, the overarching plot points, and the story's prevailing tone or genre.
+    with open(story_file, "r") as f:
+        story_text = f.read()
 
-    Story:
-    {story_content}
+    prompt = f"""
+    Analyze the following story and deconstruct it into a detailed narrative schema. The schema should be in JSON format and include the following elements:
+
+    -   **Title**: The title of the story.
+    -   **Logline**: A one-sentence summary of the story.
+    -   **Characters**: A list of all characters with detailed descriptions, including their physical appearance, personality, and motivations.
+    -   **Setting**: A description of the primary locations and the overall atmosphere of the story.
+    -   **Plot_Summary**: A brief overview of the main plot points.
+    -   **Scene_Breakdown**: A list of all scenes, where each scene includes:
+        -   **Scene_Number**: The number of the scene.
+        -   **Setting**: The location of the scene.
+        -   **Time_of_Day**: The time of day the scene takes place.
+        -   **Characters_Present**: A list of characters in the scene.
+        -   **Events**: A detailed, step-by-step description of the events that unfold in the scene.
+
+    Here is the story:
+
+    {story_text}
     """
-    response1 = model.generate_content(
-        [prompt1],
-        generation_config={
-            "max_output_tokens": 8192,
-            "temperature": 0.2,
-            "top_p": 1.0,
-        },
+
+    generation_config = {
+        "max_output_tokens": 8192,
+        "temperature": 1,
+        "top_p": 0.95,
+    }
+
+    safety_settings = {
+        generative_models.HarmCategory.HARM_CATEGORY_HATE_SPEECH: generative_models.HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE,
+        generative_models.HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT: generative_models.HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE,
+        generative_models.HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT: generative_models.HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE,
+        generative_models.HarmCategory.HARM_CATEGORY_HARASSMENT: generative_models.HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE,
+    }
+
+    responses = model.generate_content(
+        [prompt],
+        generation_config=generation_config,
+        safety_settings=safety_settings,
+        stream=True,
     )
 
-    # Second prompt for hierarchical outline
-    prompt2 = f"""
-    Based on the following summary and key elements, generate a hierarchical outline of the story.
-    Break the overall plot into a sequence of distinct scenes, each with a brief summary of its constituent beats.
-    The final output must be a consistent, parsable JSON object.
+    schema_json = ""
+    for response in responses:
+        schema_json += response.text
 
-    The JSON object should have the following schema:
-    {{
-      "title": "The Last Sundown",
-      "logline": "In a desolate future, a lone wanderer must...",
-      "characters": [
-        {{
-          "name": "Elara",
-          "description": "A stoic survivor in her late 20s, resourceful and cautious, with a hidden past."
-        }},
-        {{
-          "name": "Kael",
-          "description": "An aging, cynical scavenger who knows the secrets of the wasteland."
-        }}
-      ],
-      "scenes": []
-    }}
+    # Clean up the JSON - Gemini sometimes includes ```json ... ```
+    schema_json = schema_json.strip()
+    if schema_json.startswith("```json"):
+        schema_json = schema_json[7:]
+    if schema_json.endswith("```"):
+        schema_json = schema_json[:-3]
 
-    Summary and Key Elements:
-    {response1.text}
-    """
-    response2 = model.generate_content(
-        [prompt2],
-        generation_config={
-            "max_output_tokens": 8192,
-            "temperature": 0.7,
-            "top_p": 1.0,
-        },
-    )
+    # Save the schema to a file
+    output_dir = os.path.join("output", "narrative_schema")
+    os.makedirs(output_dir, exist_ok=True)
+    schema_filename = os.path.join(output_dir, f"{os.path.splitext(os.path.basename(story_file))[0]}_schema.json")
+    with open(schema_filename, "w") as f:
+        f.write(schema_json)
 
-    narrative_schema_str = response2.text
+    return schema_filename
 
-    # Clean the output to be a valid JSON
-    if narrative_schema_str.strip().startswith("```json"):
-        narrative_schema_str = narrative_schema_str.strip()[7:-4]
-
-    try:
-        narrative_schema = json.loads(narrative_schema_str)
-    except json.JSONDecodeError:
-        # Handle error, maybe save the raw response for debugging
-        print(f"Error: Failed to decode the narrative schema from the model's response.")
-        # For now, we'll just save the raw text
-        narrative_schema = {"error": "Failed to decode JSON", "raw_response": narrative_schema_str}
-
-    with open(output_path, "w") as f:
-        json.dump(narrative_schema, f, indent=2)
-
-def generate_screenplay_and_storyboard_task(narrative_schema, project, location, screenplay_path, storyboard_path):
-    """
-    Generates a screenplay and storyboard from the narrative schema.
-    """
+# Screenplay and Storyboard Generation
+def generate_screenplay_and_storyboard(schema_file, project, location):
+    """Generates a screenplay and storyboard from a narrative schema using Gemini."""
     vertexai.init(project=project, location=location)
-    model = GenerativeModel("gemini-1.5-flash")
+    model = GenerativeModel("gemini-2.5-pro")
+
+    with open(schema_file, "r") as f:
+        schema_text = f.read()
+
+    # Generate Screenplay
+    screenplay_prompt = f"""
+    Based on the following narrative schema, write a detailed screenplay. The screenplay should be formatted correctly, with scene headings, character names, dialogue, and action descriptions.
+
+    Narrative Schema:
+    {schema_text}
+    """
+    screenplay_config = {
+        "max_output_tokens": 8192,
+        "temperature": 1,
+        "top_p": 0.95,
+    }
+    screenplay_responses = model.generate_content(
+        [screenplay_prompt],
+        generation_config=screenplay_config,
+        stream=True,
+    )
 
     screenplay = ""
+    for response in screenplay_responses:
+        screenplay += response.text
+
+    # Generate Storyboard
+    storyboard_prompt = f"""
+    Based on the following screenplay, create a detailed storyboard. The storyboard should break down each scene into individual shots, with a description of the camera angle, shot type, and action for each shot.
+
+    Screenplay:
+    {screenplay}
+    """
+    storyboard_config = {
+        "max_output_tokens": 8192,
+        "temperature": 1,
+        "top_p": 0.95,
+    }
+    storyboard_responses = model.generate_content(
+        [storyboard_prompt],
+        generation_config=storyboard_config,
+        stream=True,
+    )
+
     storyboard = ""
+    for response in storyboard_responses:
+        storyboard += response.text
 
-    for scene in narrative_schema["scenes"]:
-        scene_number = scene["scene_number"]
-        scene_title = scene["title"]
-        scene_setting = scene.get("setting", "")
-        scene_summary = scene["summary"]
-        characters_in_scene = [char['name'] for char in narrative_schema['characters']]
+    # Save the screenplay and storyboard to files
+    project_name = os.path.splitext(os.path.basename(schema_file))[0].replace("_schema", "")
+    screenplay_dir = os.path.join("output", "screenplay")
+    storyboard_dir = os.path.join("output", "storyboard_text")
+    os.makedirs(screenplay_dir, exist_ok=True)
+    os.makedirs(storyboard_dir, exist_ok=True)
 
+    screenplay_filename = os.path.join(screenplay_dir, f"{project_name}_screenplay.txt")
+    storyboard_filename = os.path.join(storyboard_dir, f"{project_name}_storyboard.txt")
 
-        # Generate Screenplay for the scene
-        screenplay_prompt = f"""
-        Generate a screenplay scene based on the following information.
-        The output should be in standard screenplay format (SCENE HEADING, ACTION, CHARACTER, DIALOGUE, PARENTHETICAL).
-
-        **Example Format:**
-        SCENE HEADING
-        ACTION
-        CHARACTER
-        (PARENTHETICAL)
-        DIALOGUE
-
-        **Scene Information:**
-        **Scene Number:** {scene_number}
-        **Scene Title:** {scene_title}
-        **Setting:** {scene_setting}
-        **Summary:** {scene_summary}
-        **Characters:** {', '.join(characters_in_scene)}
-
-        **Generate the screenplay for this scene:**
-        """
-
-        screenplay_response = model.generate_content(
-            [screenplay_prompt],
-            generation_config={
-                "max_output_tokens": 8192,
-                "temperature": 0.7,
-                "top_p": 1.0,
-            },
-        )
-        screenplay += f"\n\n## SCENE {scene_number}: {scene_title.upper()}\n\n" + screenplay_response.text
-
-        # Generate Storyboard for the scene
-        storyboard_prompt = f"""
-        Generate a descriptive, shot-by-shot text storyboard for the following scene.
-        Each shot description should be detailed and actionable, serving as a direct prompt for later image and video generation stages.
-        Start each shot with "SCENE {scene_number}, SHOT X:"
-
-        **Scene Information:**
-        **Scene Number:** {scene_number}
-        **Scene Title:** {scene_title}
-        **Setting:** {scene_setting}
-        **Summary:** {scene_summary}
-
-        **Generate the storyboard for this scene:**
-        """
-
-        storyboard_response = model.generate_content(
-            [storyboard_prompt],
-            generation_config={
-                "max_output_tokens": 8192,
-                "temperature": 0.7,
-                "top_p": 1.0,
-            },
-        )
-        storyboard += "\n\n" + storyboard_response.text
-
-    with open(screenplay_path, "w") as f:
+    with open(screenplay_filename, "w") as f:
         f.write(screenplay)
-
-    with open(storyboard_path, "w") as f:
+    with open(storyboard_filename, "w") as f:
         f.write(storyboard)
 
-def generate_visual_assets_task(task_id: str, schema_path: str, storyboard_path: str, project: str, location: str):
-    """Generates visual assets for the film and updates progress."""
-    def update_progress(message: str):
-        with progress_lock:
-            progress_data[task_id] = {"message": message}
+    return screenplay_filename, storyboard_filename
 
-    try:
-        with open(schema_path, "r") as f:
-            narrative_schema = json.load(f)
-        with open(storyboard_path, "r") as f:
-            storyboard_content = f.read()
+# Visual Asset Generation
+def generate_visual_assets(storyboard_file, schema_file, project, location):
+    """
+    Generates visual assets (character portraits, environment plates, and storyboard images)
+    based on the storyboard and narrative schema.
+    """
+    with open(storyboard_file, "r") as f:
+        storyboard_text = f.read()
+    with open(schema_file, "r") as f:
+        schema = json.load(f)
 
-        characters = narrative_schema.get("characters", [])
-        locations = set(scene.get("setting", "Unknown") for scene in narrative_schema.get("scenes", []))
-        shot_regex = re.compile(r"SCENE (\d+), SHOT (\d+):\n(.*?)(?=\nSCENE|\Z)", re.DOTALL)
-        shots = shot_regex.findall(storyboard_content)
+    # Extract character descriptions and locations from the schema
+    characters = schema.get("Characters", [])
+    locations = list(set(scene["Setting"] for scene in schema.get("Scene_Breakdown", [])))
 
-        total_assets = len(characters) + len(locations) + len(shots)
-        completed_assets = 0
+    # Generate character portraits
+    for character in characters:
+        generate_character_portrait(character["Name"], character["Description"], project, location)
 
-        # Generate character model sheets
-        for character in characters:
-            completed_assets += 1
-            update_progress(f"({completed_assets}/{total_assets}) Generating model sheet for {character['name']}...")
-            generate_character_model_sheet(character, project, location)
+    # Generate environment plates
+    for location_name in locations:
+        generate_environment_plate(location_name, project, location)
 
-        # Generate environment plates
-        for location_name in locations:
-            completed_assets += 1
-            update_progress(f"({completed_assets}/{total_assets}) Generating environment plate for {location_name}...")
-            generate_environment_plate(location_name, project, location)
+    # Generate storyboard images from storyboard text
+    shots = storyboard_text.strip().split("\n\n")
+    for i, shot in enumerate(shots):
+        scene_number = i // 10 + 1  # Assuming 10 shots per scene for placeholder
+        shot_number = i % 10 + 1
+        generate_storyboard_image(shot, scene_number, shot_number, project, location)
 
-        # Generate storyboard images
-        for scene_number, shot_number, shot_description in shots:
-            completed_assets += 1
-            update_progress(f"({completed_assets}/{total_assets}) Generating image for Scene {scene_number}, Shot {shot_number}...")
-            generate_storyboard_image(shot_description.strip(), scene_number, shot_number, project, location)
-
-        with progress_lock:
-            progress_data[task_id]["complete"] = True
-
-    except Exception as e:
-        with progress_lock:
-            progress_data[task_id] = {"message": f"Error: {e}", "complete": True}
-
-def generate_character_model_sheet(character, project, location):
-    """Generates a character model sheet using Imagen."""
+def generate_character_portrait(character_name, character_description, project, location):
+    """Generates a character portrait using Imagen."""
     vertexai.init(project=project, location=location)
     model = ImageGenerationModel.from_pretrained("imagen-3.0-fast-generate-001")
 
     prompt = (
-        f"A full-body character model sheet for \"{character['name']}\". "
-        f"Description: {character['description']}. "
-        f"The character is in a neutral pose against a plain, simple background. "
-        f"Art style: 3D cartoon animation."
+        f"A full-body character concept art of {character_name}. "
+        f"Description: {character_description}. "
+        f"Art style: 3D cartoon animation, detailed, expressive."
     )
 
-    images = model.generate_images(prompt=prompt, number_of_images=1)
+    images = model.generate_images(prompt=prompt, number_of_images=1, aspect_ratio="9:16")
 
-    image_path = os.path.join("output", "storyboard_images", f"character_{character['name'].lower().replace(' ', '_')}.png")
+    image_path = os.path.join("output", "storyboard_images", f"character_{character_name.lower().replace(' ', '_')}.png")
     os.makedirs(os.path.dirname(image_path), exist_ok=True)
     images[0].save(location=image_path, include_generation_parameters=True)
     return image_path
 
 def generate_environment_plate(location_name, project, location):
     """Generates an environment plate using Imagen."""
-    vertexai.init(project=project, location=location)
-    model = ImageGenerationModel.from_pretrained("imagen-3.0-fast-generate-001")
+    try:
+        vertexai.init(project=project, location=location)
+        model = ImageGenerationModel.from_pretrained("imagen-3.0-fast-generate-001")
 
-    prompt = (
-        f"An environment concept art plate for \"{location_name}\". "
-        f"Art style: 3D cartoon animation, cinematic lighting."
-    )
+        prompt = (
+            f"An environment concept art plate for "{location_name}". "
+            f"Art style: 3D cartoon animation, cinematic lighting."
+        )
 
-    images = model.generate_images(prompt=prompt, number_of_images=1, aspect_ratio="16:9")
+        images = model.generate_images(prompt=prompt, number_of_images=1, aspect_ratio="16:9")
 
-    image_path = os.path.join("output", "storyboard_images", f"environment_{location_name.lower().replace(' ', '_')}.png")
-    os.makedirs(os.path.dirname(image_path), exist_ok=True)
-    images[0].save(location=image_path, include_generation_parameters=True)
-    return image_path
+        image_path = os.path.join("output", "storyboard_images", f"environment_{location_name.lower().replace(' ', '_')}.png")
+        os.makedirs(os.path.dirname(image_path), exist_ok=True)
+        images[0].save(location=image_path, include_generation_parameters=True)
+        return image_path
+    except Exception as e:
+        print(f"Error generating environment plate for {location_name}: {e}")
+        return None
 
 def generate_storyboard_image(shot_description, scene_number, shot_number, project, location):
     """Generates a storyboard image from a shot description using Imagen."""
-    vertexai.init(project=project, location=location)
-    model = ImageGenerationModel.from_pretrained("imagen-3.0-fast-generate-001")
-
-    images = model.generate_images(prompt=shot_description, number_of_images=1, aspect_ratio="16:9")
-
-    image_path = os.path.join("output", "storyboard_images", f"scene_{scene_number}_shot_{shot_number}.png")
-    os.makedirs(os.path.dirname(image_path), exist_ok=True)
-    images[0].save(location=image_path, include_generation_parameters=True)
-    return image_path
-
-def generate_video_synthesis_task(task_id: str, storyboard_path: str, images_directory: str, project: str, location: str):
-    """Generates video clips from storyboard images and updates progress."""
-    def update_progress(message: str):
-        with progress_lock:
-            progress_data[task_id] = {"message": message}
-
     try:
-        with open(storyboard_path, "r") as f:
-            storyboard_content = f.read()
+        vertexai.init(project=project, location=location)
+        model = ImageGenerationModel.from_pretrained("imagen-3.0-fast-generate-001")
 
-        shot_regex = re.compile(r"SCENE (\d+), SHOT (\d+):\n(.*?)(?=\nSCENE|\Z)", re.DOTALL)
-        shots = shot_regex.findall(storyboard_content)
-        total_shots = len(shots)
-        completed_shots = 0
+        images = model.generate_images(prompt=shot_description, number_of_images=1, aspect_ratio="16:9")
 
-        for scene_number, shot_number, shot_description in shots:
-            completed_shots += 1
-            update_progress(f"({completed_shots}/{total_shots}) Synthesizing video for Scene {scene_number}, Shot {shot_number}...")
-
-            image_name = f"scene_{scene_number}_shot_{shot_number}.png"
-            image_path = os.path.join(images_directory, image_name)
-
-            if os.path.exists(image_path):
-                generate_video_clip(shot_description.strip(), image_path, scene_number, shot_number, project, location)
-            else:
-                # This will be reported back to the user in the progress stream
-                update_progress(f"Warning: Image not found for Scene {scene_number}, Shot {shot_number}. Skipping video generation.")
-
-        with progress_lock:
-            progress_data[task_id]["complete"] = True
-
+        image_path = os.path.join("output", "storyboard_images", f"scene_{scene_number}_shot_{shot_number}.png")
+        os.makedirs(os.path.dirname(image_path), exist_ok=True)
+        images[0].save(location=image_path, include_generation_parameters=True)
+        return image_path
     except Exception as e:
-        with progress_lock:
-            progress_data[task_id] = {"message": f"Error: {e}", "complete": True}
+        print(f"Error generating storyboard image for Scene {scene_number}, Shot {shot_number}: {e}")
+        return None
+
+# Video Synthesis
+def synthesize_video_from_storyboard(storyboard_file, project, location):
+    """Synthesizes a video from a storyboard using Veo."""
+    # This function is a placeholder for Veo integration.
+    # It would involve:
+    # 1. Parsing the storyboard to get shot descriptions and lengths.
+    # 2. Generating video clips for each shot using Veo.
+    # 3. Stitching the clips together into a final video.
+    print("Video synthesis with Veo is not yet implemented.")
+    return None
 
-
-def generate_video_clip(shot_description, image_path, scene_number, shot_number, project, location):
-    """Generates a video clip from an image and a description using Veo."""
-    vertexai.init(project=project, location=location)
-    model = GenerativeModel("veo-3.0-fast-generate-001")
-
-    with open(image_path, "rb") as image_file:
-        image_data = image_file.read()
-
-    image_part = Part.from_data(data=image_data, mime_type="image/png")
-
-    response = model.generate_content(
-        [image_part, shot_description],
-        generation_config={"video_length_sec": 8, "aspect_ratio": "16:9"}
-    )
-    videos = response.candidates
-
-    video_path = os.path.join("output", "video_clips", f"scene_{scene_number}_shot_{shot_number}.mp4")
-    os.makedirs(os.path.dirname(video_path), exist_ok=True)
-    with open(video_path, "wb") as video_file:
-        video_file.write(videos[0].content.data)
-
-    return video_path
-
-
-def generate_soundtrack_task(project_id: str, location: str, narrative_schema_path: str, output_path: str):
-    """Generates a soundtrack using Vertex AI."""
-    vertexai.init(project=project_id, location=location)
-
-    # Load the narrative schema
-    with open(narrative_schema_path, "r") as f:
-        schema = json.load(f)
-
-    # Create a prompt for the music generation model
-    logline = schema.get("logline", "")
-    first_scene_summary = ""
-    if schema.get("scenes"):
-        first_scene_summary = schema["scenes"][0].get("summary", "")
-    
-    prompt = f"Generate a soundtrack for a story with the following theme: '{logline}' The opening scene is: '{first_scene_summary}'"
-
-    print(f"Using prompt: {prompt}")
-
-    model = GenerativeModel("music-generation-preview")
-
-    response = model.generate_content(
-        [prompt]
-    )
-    music_part = response.candidates[0].content.parts[0]
-
-    # Save the music to the output file
-    os.makedirs(os.path.dirname(output_path), exist_ok=True)
-    with open(output_path, "wb") as f:
-        f.write(music_part.blob)
-
-    print(f"Soundtrack saved to {output_path}")
-
-def generate_voiceover_task(project_id: str, screenplay_path: str, output_path: str):
-    """Generates a voiceover from a screenplay using Google Cloud Text-to-Speech."""
-
-    # Initialize the Text-to-Speech client
-    client = texttospeech.TextToSpeechClient()
-
-    # Read the screenplay
-    with open(screenplay_path, "r") as f:
-        screenplay = f.read()
-
-    # Extract dialogue from the screenplay (simple extraction logic)
-    dialogue_lines = []
-    for line in screenplay.split('\n'):
-        if line.isupper() and not line.startswith('SCENE') and not line.startswith('INT.') and not line.startswith('EXT.'):
-            # This is likely a character name
-            pass
-        elif line.startswith('('):
-            # This is likely a parenthetical
-            pass
-        elif line.strip() and not line.isupper():
-            dialogue_lines.append(line.strip())
-
-    dialogue = " ".join(dialogue_lines)
-
-    if not dialogue:
-        print("No dialogue found in the screenplay.")
-        return
-
-    synthesis_input = texttospeech.SynthesisInput(text=dialogue)
-
-    # Build the voice request
-    voice = texttospeech.VoiceSelectionParams(
-        language_code="en-US", ssml_gender=texttospeech.SsmlVoiceGender.NEUTRAL
-    )
-
-    # Select the type of audio file you want
-    audio_config = texttospeech.AudioConfig(
-        audio_encoding=texttospeech.AudioEncoding.MP3
-    )
-
-    # Perform the text-to-speech request
-    response = client.synthesize_speech(
-        input=synthesis_input, voice=voice, audio_config=audio_config
-    )
-
-    # Save the audio to the output file
-    os.makedirs(os.path.dirname(output_path), exist_ok=True)
-    with open(output_path, "wb") as f:
-        f.write(response.audio_content)
-
-    print(f"Voiceover saved to {output_path}")
-
-def assemble_film_task(
-    video_clips_dir: str,
-    soundtrack_path: str,
-    voiceover_path: str,
-    output_path: str,
-    output_filename: str
-):
-    """Assembles the final film from video clips, soundtrack, and voiceover."""
-
-    # Get all video clips and sort them
-    video_files = sorted([f for f in os.listdir(video_clips_dir) if f.endswith(".mp4")] )
-    video_paths = [os.path.join(video_clips_dir, f) for f in video_files]
-
-    if not video_paths:
-        print("No video clips found.")
-        return
-
-    # Create a temporary file with the list of video files for concatenation
-    concat_file_path = os.path.join(video_clips_dir, "concat.txt")
-    with open(concat_file_path, "w") as f:
-        for path in video_paths:
-            f.write(f"file '{os.path.basename(path)}'\n")
-
-    # Concatenate video clips
-    video_stream = ffmpeg.input(concat_file_path, format='concat', safe=0, r=24)
-
-    # Input soundtrack and voiceover
-    soundtrack_stream = ffmpeg.input(soundtrack_path)
-    voiceover_stream = ffmpeg.input(voiceover_path)
-
-    # Combine audio streams
-    combined_audio = ffmpeg.filter([
-        soundtrack_stream, 
-        voiceover_stream
-    ], 'amix', inputs=2, duration='first')
-
-    # Create the output directory if it doesn't exist
-    os.makedirs(output_path, exist_ok=True)
-    final_output_path = os.path.join(output_path, output_filename)
-
-    # Mux video and combined audio
-    (
-        ffmpeg
-        .output(video_stream, combined_audio, final_output_path, vcodec='copy', acodec='aac', shortest=None)
-        .run(overwrite_output=True)
-    )
-
-    # Clean up the temporary concat file
-    os.remove(concat_file_path)
-
-    print(f"Final film assembled at {final_output_path}")
-
-# --- PROGRESS STREAM ENDPOINT ---
-
-async def progress_stream_generator(task_id: str):
-    """Yields progress updates for a given task_id."""
-    last_message = None
-    while True:
-        with progress_lock:
-            task_progress = progress_data.get(task_id, {})
-            message = task_progress.get("message")
-            complete = task_progress.get("complete", False)
-
-        if message and message != last_message:
-            yield f"data: {json.dumps({'message': message})}\n\n"
-            last_message = message
-
-        if complete:
-            yield f"data: {json.dumps({'message': 'Task completed.', 'complete': True})}\n\n"
-            # Clean up the task from memory
-            with progress_lock:
-                if task_id in progress_data:
-                    del progress_data[task_id]
-            break
-        await asyncio.sleep(1)
-
-@app.get("/progress/{task_id}")
-async def progress_stream(task_id: str):
-    return StreamingResponse(progress_stream_generator(task_id), media_type="text/event-stream")
-
-
-# --- REQUEST MODELS ---
-
-class ScreenplayStoryboardRequest(BaseModel):
-    schema_path: str
-    project_id: str
-    location: str = "us-central1"
-
-class VisualAssetGenerationRequest(BaseModel):
-    schema_path: str
-    storyboard_path: str
-    project_id: str
-    location: str = "us-central1"
-
-class VideoSynthesisRequest(BaseModel):
-    storyboard_path: str
-    images_directory: str
-    project_id: str
-    location: str = "us-central1"
-
-class SoundtrackGenerationRequest(BaseModel):
-    schema_path: str
-    project_id: str
-    location: str = "us-central1"
-
-class VoiceoverGenerationRequest(BaseModel):
-    screenplay_path: str
-    project_id: str
-
-class FinalAssemblyRequest(BaseModel):
-    video_clips_dir: str
-    soundtrack_path: str
-    voiceover_path: str
-    output_path: str
-    output_filename: str
-
-# --- ENDPOINTS ---
-
-@app.post("/narrative_deconstruction")
-async def narrative_deconstruction_endpoint(
-    background_tasks: BackgroundTasks,
-    project_id: str = Form(...),
-    location: str = Form("us-central1"),
-    story_file: UploadFile = File(...)
-):
-    story_content = (await story_file.read()).decode("utf-8")
-    
-    output_dir = os.path.join("output", "narrative_schema")
-    os.makedirs(output_dir, exist_ok=True)
-    output_filename = os.path.splitext(story_file.filename)[0] + "_schema.json"
-    output_path = os.path.join(output_dir, output_filename)
-
-    background_tasks.add_task(deconstruct_narrative_task, story_content, project_id, location, output_path)
-
-    return {"message": "Narrative deconstruction started in the background.", "output_path": output_path}
-
-@app.post("/screenplay_and_storyboard")
-async def screenplay_and_storyboard_endpoint(request: ScreenplayStoryboardRequest, background_tasks: BackgroundTasks):
-    try:
-        with open(request.schema_path, "r") as f:
-            narrative_schema = json.load(f)
-    except (FileNotFoundError, json.JSONDecodeError) as e:
-        return {"error": f"Failed to read or parse schema file: {e}"}
-
-    base_name = os.path.splitext(os.path.basename(request.schema_path))[0].replace('_schema', '')
-
-    screenplay_dir = os.path.join("output", "screenplay")
-    os.makedirs(screenplay_dir, exist_ok=True)
-    screenplay_path = os.path.join(screenplay_dir, f"{base_name}_screenplay.txt")
-
-    storyboard_dir = os.path.join("output", "storyboard_text")
-    os.makedirs(storyboard_dir, exist_ok=True)
-    storyboard_path = os.path.join(storyboard_dir, f"{base_name}_storyboard.txt")
-
-    background_tasks.add_task(generate_screenplay_and_storyboard_task, narrative_schema, request.project_id, request.location, screenplay_path, storyboard_path)
-
-    return {
-        "message": "Screenplay and storyboard generation started in the background.",
-        "screenplay_path": screenplay_path,
-        "storyboard_path": storyboard_path
-    }
-
-@app.post("/visual_asset_generation")
-async def visual_asset_generation_endpoint(request: VisualAssetGenerationRequest, background_tasks: BackgroundTasks):
-    task_id = str(uuid.uuid4())
-    with progress_lock:
-        progress_data[task_id] = {"message": "Initializing asset generation...", "complete": False}
-
-    background_tasks.add_task(generate_visual_assets_task, task_id, request.schema_path, request.storyboard_path, request.project_id, request.location)
-    return {"message": "Visual asset generation started.", "task_id": task_id}
-
-@app.post("/video_synthesis")
-async def video_synthesis_endpoint(request: VideoSynthesisRequest, background_tasks: BackgroundTasks):
-    task_id = str(uuid.uuid4())
-    with progress_lock:
-        progress_data[task_id] = {"message": "Initializing video synthesis...", "complete": False}
-
-    background_tasks.add_task(generate_video_synthesis_task, task_id, request.storyboard_path, request.images_directory, request.project_id, request.location)
-    return {"message": "Video synthesis started.", "task_id": task_id}
-
-@app.post("/soundtrack_generation")
-async def soundtrack_generation_endpoint(request: SoundtrackGenerationRequest, background_tasks: BackgroundTasks):
-    output_path = "output/soundtrack/soundtrack.mp3"
-    background_tasks.add_task(generate_soundtrack_task, request.project_id, request.location, request.schema_path, output_path)
-    return {"message": "Soundtrack generation started in the background.", "output_path": output_path}
-
-@app.post("/voiceover_generation")
-async def voiceover_generation_endpoint(request: VoiceoverGenerationRequest, background_tasks: BackgroundTasks):
-    output_path = "output/voiceover/voiceover.mp3"
-    background_tasks.add_task(generate_voiceover_task, request.project_id, request.screenplay_path, output_path)
-    return {"message": "Voiceover generation started in the background.", "output_path": output_path}
-
-@app.post("/final_assembly")
-async def final_assembly_endpoint(request: FinalAssemblyRequest, background_tasks: BackgroundTasks):
-    background_tasks.add_task(assemble_film_task, request.video_clips_dir, request.soundtrack_path, request.voiceover_path, request.output_path, request.output_filename)
-    return {"message": "Final assembly started in the background."}
-
-@app.get("/")
-def read_root():
-    return {"Hello": "World"}
