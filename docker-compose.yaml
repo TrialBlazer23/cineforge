@@ -1,0 +1,33 @@
+version: '3.8'
+services:
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "8000:8000"
+    volumes:
+      - .:/app
+      - ${APPDATA}/gcloud/application_default_credentials.json:/app/application_default_credentials.json
+    environment:
+      - PORT=8000
+      - GOOGLE_APPLICATION_CREDENTIALS=/app/application_default_credentials.json
+    networks:
+      - mynetwork
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "8501:8501"
+    depends_on:
+      - backend
+    volumes:
+      - .:/app
+    command: /home/appuser/.local/bin/streamlit run app.py --server.port=8501 --server.enableCORS=false
+    networks:
+      - mynetwork
+
+networks:
+  mynetwork:
+    driver: bridge

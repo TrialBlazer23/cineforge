@@ -1,0 +1,1 @@
+{"image":"gcr.io/kino-geist-ai-studio/kino-studio-master","builder":"Docker","payload":{"path":"skaffold.yaml"}}

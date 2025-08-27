@@ -1,0 +1,51 @@
+steps:
+  # 1. Build the container image
+  # This step uses the Docker builder to build the image using the Dockerfile in the current directory.
+  # The image is tagged with the commit SHA for versioning.
+- name: 'gcr.io/cloud-builders/docker'
+  id: 'Build'
+  args:
+    - 'build'
+    - '-t'
+    - '${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPOSITORY}/${_SERVICE_NAME}:${BUILD_ID}'
+    - '.'
+
+  # 2. Push the container image to Artifact Registry
+  # This step pushes the newly built image to your Artifact Registry repository.
+- name: 'gcr.io/cloud-builders/docker'
+  id: 'Push'
+  args:
+    - 'push'
+    - '${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPOSITORY}/${_SERVICE_NAME}:${BUILD_ID}'
+
+  # 3. Deploy the container image to Cloud Run
+  # This step uses the gcloud builder to deploy the image to your Cloud Run service.
+  # It uses the image pushed in the previous step.
+- name: 'gcr.io/cloud-builders/gcloud'
+  id: 'Deploy'
+  entrypoint: 'gcloud'
+  args:
+    - 'run'
+    - 'deploy'
+    - '${_SERVICE_NAME}'
+    - '--image'
+    - '${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPOSITORY}/${_SERVICE_NAME}:${BUILD_ID}'
+    - '--region'
+    - '${_REGION}'
+    - '--project=$PROJECT_ID' # Explicitly set the project for the deploy step
+    - '--platform=managed'
+    - '--allow-unauthenticated'
+    - '--memory=4Gi'
+    - '--cpu=2'
+
+# Store the image in Artifact Registry
+images:
+  - '${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPOSITORY}/${_SERVICE_NAME}:${BUILD_ID}'
+
+substitutions:
+  _REGION: 'us-central1'
+  _REPOSITORY: 'ai-film-studio-repo'
+  _SERVICE_NAME: 'ai-film-studio'
+
+options:
+  logging: CLOUD_LOGGING_ONLY

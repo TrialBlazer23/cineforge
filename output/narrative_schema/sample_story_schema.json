@@ -1,0 +1,176 @@
+{
+  "title": "The Last Sundown",
+  "logline": "In a desolate future where the sun is dying, a lone wanderer must team up with a cynical scavenger to reach the last city before their world is plunged into eternal darkness.",
+  "characters": [
+    {
+      "name": "Elara",
+      "description": "A stoic survivor in her late 20s, resourceful and cautious, with a hidden past and a mysterious reason for her journey."
+    },
+    {
+      "name": "Kael",
+      "description": "An aging, cynical scavenger who knows the secrets of the wasteland and has survived through his wits and knowledge."
+    }
+  ],
+  "scenes": [
+    {
+      "scene_number": 1,
+      "title": "The Dying Light",
+      "setting": "The Desolate Wasteland",
+      "summary": "Elara travels alone through the harsh wasteland, where the flickering sun serves as a constant, ominous reminder of the approaching end.",
+      "beats": [
+        {
+          "beat_number": 1,
+          "description": "Establish Elara's solitary journey, showcasing her competence and the barren, dangerous landscape."
+        },
+        {
+          "beat_number": 2,
+          "description": "The sun dims erratically, casting long, shifting shadows and creating a palpable sense of urgency. The world grows noticeably colder."
+        },
+        {
+          "beat_number": 3,
+          "description": "Elara pauses to check her dwindling supplies, revealing her vulnerability beneath a resourceful exterior. She gazes toward the distant horizon, her destination unseen but not forgotten."
+        }
+      ]
+    },
+    {
+      "scene_number": 2,
+      "title": "An Unlikely Encounter",
+      "setting": "Ruins of an Old Highway",
+      "summary": "Caught in a sudden dust storm, Elara is rescued by Kael, a grizzled and suspicious scavenger who appears from the wastes.",
+      "beats": [
+        {
+          "beat_number": 1,
+          "description": "A violent dust storm descends, blinding Elara and forcing her to seek shelter in the rusted shell of a vehicle."
+        },
+        {
+          "beat_number": 2,
+          "description": "Kael finds her, emerging from the storm like a ghost. He is gruff and wary, but offers her better shelter in a nearby culvert."
+        },
+        {
+          "beat_number": 3,
+          "description": "Inside the shelter, they size each other up. Kael is cynical about her quest for the city; Elara is suspicious of his motives."
+        }
+      ]
+    },
+    {
+      "scene_number": 3,
+      "title": "A Fragile Alliance",
+      "setting": "A Hidden Cave Shelter",
+      "summary": "Recognizing the futility of traveling alone, Elara and Kael forge a partnership of convenience to navigate the wasteland together.",
+      "beats": [
+        {
+          "beat_number": 1,
+          "description": "Kael points out fatal flaws in Elara's planned route, demonstrating his superior knowledge of the land and its hidden dangers."
+        },
+        {
+          "beat_number": 2,
+          "description": "He offers to guide her for a share of her supplies. Elara hesitates, not trusting him fully."
+        },
+        {
+          "beat_number": 3,
+          "description": "Realizing the ticking clock of the dying sun leaves her no choice, Elara agrees to his terms. The alliance is formed, built on necessity rather than trust."
+        }
+      ]
+    },
+    {
+      "scene_number": 4,
+      "title": "Lessons of the Wastes",
+      "setting": "The Salt Flats",
+      "summary": "As they travel, Kael imparts crucial survival knowledge to Elara, and a grudging respect begins to form between them.",
+      "beats": [
+        {
+          "beat_number": 1,
+          "description": "Kael teaches Elara how to find scarce water, read the signs of mutated predators, and navigate by the shifting star patterns."
+        },
+        {
+          "beat_number": 2,
+          "description": "During a quiet night, Kael reveals a small piece of his past, hinting at a family he lost, which explains his hardened cynicism."
+        },
+        {
+          "beat_number": 3,
+          "description": "Elara proves to be a fast learner, successfully applying one of Kael's lessons to save them from a minor danger, earning his respect."
+        }
+      ]
+    },
+    {
+      "scene_number": 5,
+      "title": "A Moment of Despair",
+      "setting": "The Skeletal Remains of a Suburb",
+      "summary": "A major setback tests their resolve when a massive solar event accelerates the sun's decay, making their journey seem impossible.",
+      "beats": [
+        {
+          "beat_number": 1,
+          "description": "The sun convulses violently, plunging the world into a deep, terrifying twilight for several minutes. The temperature plummets."
+        },
+        {
+          "beat_number": 2,
+          "description": "In the ensuing panic to find shelter, a critical piece of their equipment is lost or destroyed."
+        },
+        {
+          "beat_number": 3,
+          "description": "Kael falls into despair, claiming the end has come sooner than predicted and that their quest is now hopeless. For the first time, Elara must be the one to drive them forward."
+        }
+      ]
+    },
+    {
+      "scene_number": 6,
+      "title": "The Final Push",
+      "setting": "The Ashen Plains",
+      "summary": "Spurred on by Elara's unwavering determination, and with the city lights now a faint glimmer on the horizon, they begin the last, desperate leg of their journey.",
+      "beats": [
+        {
+          "beat_number": 1,
+          "description": "Elara refuses to give up, revealing a sliver of her own motivation\u2014a promise she must keep\u2014which rekindles a spark of hope in Kael."
+        },
+        {
+          "beat_number": 2,
+          "description": "They crest a ridge and finally see it: the faint, steady lights of the last city, a beacon in the encroaching darkness."
+        },
+        {
+          "beat_number": 3,
+          "description": "With renewed purpose, they press on, moving as fast as they can across the most dangerous terrain yet as the sun begins its final, sputtering death throes."
+        }
+      ]
+    },
+    {
+      "scene_number": 7,
+      "title": "The Gates of Hope",
+      "setting": "The Entrance to the Last City",
+      "summary": "Exhausted and battered, they arrive at the city gates only to face a final, impassive obstacle before the sun extinguishes forever.",
+      "beats": [
+        {
+          "beat_number": 1,
+          "description": "They reach the massive, sealed gates of the city just as the last sliver of the sun touches the horizon."
+        },
+        {
+          "beat_number": 2,
+          "description": "An automated defense system or a cold, disembodied voice denies them entry, stating the city is under permanent lockdown."
+        },
+        {
+          "beat_number": 3,
+          "description": "As their last hope fades, Elara reveals her secret purpose: she holds a unique genetic key or a piece of lost technology that the city needs to survive. This is her true reason for the journey."
+        }
+      ]
+    },
+    {
+      "scene_number": 8,
+      "title": "A New Dawn in Darkness",
+      "setting": "Inside the Last City",
+      "summary": "Granted entry, Elara and Kael step into the last bastion of humanity as the sun finally dies, safe but facing an uncertain future.",
+      "beats": [
+        {
+          "beat_number": 1,
+          "description": "Her purpose verified, the great gates grind open. They stumble inside into a world of artificial light and warmth."
+        },
+        {
+          "beat_number": 2,
+          "description": "They turn and watch through a viewport as the sun vanishes completely, plunging the world they knew into absolute darkness and cold. The journey is over."
+        },
+        {
+          "beat_number": 3,
+          "description": "Surrounded by the hum of the city, Kael looks at Elara, his cynicism replaced by awe and a glimmer of hope. They have survived to see the start of humanity's new, sunless chapter."
+        }
+      ]
+    }
+  ]
+}

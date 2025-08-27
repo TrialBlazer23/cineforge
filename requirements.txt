@@ -1,0 +1,12 @@
+google-cloud-aiplatform
+streamlit
+pydub
+google-cloud-texttospeech
+google-cloud-vision
+google-cloud-storage
+ffmpeg-python
+fastapi
+uvicorn
+requests
+gunicorn
+python-multipart

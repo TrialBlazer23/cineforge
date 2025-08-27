@@ -1,0 +1,11 @@
+apiVersion: skaffold/v2beta29
+kind: Config
+build:
+  artifacts:
+  - image: gcr.io/kino-geist-ai-studio/kino-studio-master
+    context: .
+    docker:
+      dockerfile: Dockerfile
+deploy:
+  kubectl:
+    manifests: []
