@@ -81,6 +81,7 @@ def main():
     shots = shot_regex.findall(storyboard_content)
 
     for scene_number, shot_number, shot_description in shots:
+      feature/detailed-descriptions
         if args.scene is not None:
             if int(scene_number) == args.scene:
                 if args.shot is not None:
@@ -88,8 +89,7 @@ def main():
                         generate_storyboard_image(shot_description.strip(), scene_number, shot_number, args.project, args.location, style, narrative_schema)
                 else:
                     generate_storyboard_image(shot_description.strip(), scene_number, shot_number, args.project, args.location, style, narrative_schema)
-        else:
-            generate_storyboard_image(shot_description.strip(), scene_number, shot_number, args.project, args.location, style, narrative_schema)
+
 
     print("\nStoryboard image generation complete.")
 
