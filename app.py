@@ -391,6 +391,37 @@ with tab3:
     st.header("Step 3: Visual Asset Generation")
     st.write("Creates character model sheets, environment plates, and storyboard images using the text storyboard as a prompt guide.")
 
+    # Edit Storyboard section
+    if st.session_state.pipeline_state["screenplay_generated"]:
+        # On first load, ensure storyboard_text is populated if it hasn't been already
+        if 'storyboard_text' not in st.session_state:
+            try:
+                with open(st.session_state.paths['storyboard'], "r") as f:
+                    st.session_state.storyboard_text = f.read()
+            except (FileNotFoundError, TypeError):
+                st.session_state.storyboard_text = "Error: Could not load storyboard file."
+
+        with st.expander("📝 Edit Storyboard Text"):
+            # The key 'storyboard_text' is shared with Tab 2.
+            # Changes here will be reflected there, and vice-versa.
+            st.text_area(
+                "Storyboard Content",
+                key="storyboard_text",
+                height=400,
+                label_visibility="collapsed"
+            )
+            if st.button("Save Storyboard Changes", key="save_storyboard_tab3"):
+                try:
+                    with open(st.session_state.paths['storyboard'], "w") as f:
+                        f.write(st.session_state.storyboard_text)
+                    if st.session_state.project_name:
+                        save_project(st.session_state.project_name, st.session_state.to_dict())
+                    st.toast("✅ Storyboard saved successfully!")
+                    # Rerun to update cost estimates which depend on the storyboard content
+                    st.rerun()
+                except Exception as e:
+                    st.error(f"Failed to save storyboard: {e}")
+
     # Cost Estimation for Step 3
     if st.session_state.pipeline_state["screenplay_generated"]:
         with st.expander("Cost Estimation", expanded=True):
@@ -469,7 +500,7 @@ with tab3:
                     st.image([os.path.join(image_dir, img) for img in env_images], width=350)
             if storyboard_images:
                 with st.expander("Storyboard Images", expanded=True):
-                    st.info("Don't like a shot? Edit the storyboard text in the previous tab and click 'Save Edits', then regenerate the specific image here.")
+                    st.info("Don't like a shot? Edit the storyboard text above and click 'Save Storyboard Changes', then regenerate the specific image here.")
                     cols = st.columns(4)
                     for i, img_file in enumerate(storyboard_images):
                         with cols[i % 4]:
