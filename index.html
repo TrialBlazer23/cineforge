@@ -1,0 +1,611 @@
+<!DOCTYPE html>
+<html lang="en" data-color-scheme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>KINO-GEIST AI Studio</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <!-- File upload inputs (hidden) -->
+    <input type="file" id="script-upload-input" accept=".txt,.md,.pdf" title="Upload script file">
+    <input type="file" id="visual-asset-upload-input" accept="image/*,video/*,audio/*" title="Upload visual asset file">
+    <input type="file" id="text-asset-upload-input" accept=".txt,.md,.pdf" title="Upload text asset file">
+    <input type="file" id="anchor-image-upload" accept="image/*" title="Upload anchor image">
+
+    <!-- Header -->
+    <header class="header">
+        <div class="container">
+            <div class="header__content">
+                <div class="logo">
+                    <h1>KINO-GEIST</h1>
+                    <span>AI Studio</span>
+                </div>
+                <div class="universal-search">
+                    <input type="text" id="universal-search-input" placeholder="Search across all modules..." class="search-input">
+                    <div id="universal-search-results" class="search-results hidden"></div>
+                </div>
+                <nav class="nav">
+                    <button class="btn btn--sm btn--outline nav-btn active" data-section="dashboard">Command Center</button>
+                    <button class="btn btn--sm btn--outline nav-btn" data-section="story-writer">Writer's Room</button>
+                    <button class="btn btn--sm btn--outline nav-btn" data-section="story-bible">Story Bible</button>
+                    <button class="btn btn--sm btn--outline nav-btn" data-section="visual-dna">Visual DNA</button>
+                    <button class="btn btn--sm btn--outline nav-btn" data-section="shot-lab">Shot Lab</button>
+                    <button class="btn btn--sm btn--outline nav-btn" data-section="asset-nexus">Asset Nexus</button>
+                    <button class="btn btn--sm btn--outline nav-btn" data-section="screening-room">Screening Room</button>
+                </nav>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="main">
+        <!-- Dashboard Section -->
+        <section id="dashboard" class="section active">
+            <div class="container">
+                <div class="dashboard">
+                    <div class="dashboard__header">
+                        <h2>The Intelligent Studio Hub for Generative Filmmaking</h2>
+                        <p>A unified environment to write, plan, manage, and visualize your projects.</p>
+                    </div>
+                    
+                    <div class="dashboard__grid">
+                        <div class="card dashboard-card" data-section="story-writer">
+                            <div class="card__body">
+                                <h3>Writer's Room</h3>
+                                <p>Craft compelling narratives with AI assistance and convert to professional screenplay format.</p>
+                            </div>
+                        </div>
+                        
+                        <div class="card dashboard-card" data-section="story-bible">
+                            <div class="card__body">
+                                <h3>Story Bible</h3>
+                                <p>Build comprehensive world documentation with characters, locations, and lore.</p>
+                            </div>
+                        </div>
+                        
+                        <div class="card dashboard-card" data-section="visual-dna">
+                            <div class="card__body">
+                                <h3>Visual DNA</h3>
+                                <p>Define and manage the core visual style of your film for generative consistency.</p>
+                            </div>
+                        </div>
+                        
+                        <div class="card dashboard-card" data-section="shot-lab">
+                            <div class="card__body">
+                                <h3>Shot Lab</h3>
+                                <p>Break down scenes, manage shots, and build visual storyboards.</p>
+                            </div>
+                        </div>
+
+                        <div class="card dashboard-card" data-section="asset-nexus">
+                            <div class="card__body">
+                                <h3>Asset Nexus</h3>
+                                <p>A central library for all generated media, from stills to video clips and audio.</p>
+                            </div>
+                        </div>
+
+                        <div class="card dashboard-card" data-section="screening-room">
+                            <div class="card__body">
+                                <h3>Screening Room</h3>
+                                <p>Assemble animatics and pre-visualizations to check pacing and flow.</p>
+                            </div>
+                        </div>
+                    </div>
+                    
+                                        <div class="projects-section">
+                        <h3>Project Snapshot: New Project</h3>
+                        <div class="snapshot-grid">
+                            <div class="card snapshot-card">
+                                <div class="card__body">
+                                    <h4>Script Completion</h4>
+                                    <div class="progress-bar">
+                                        <div class="progress-fill" data-progress="0"></div>
+                                    </div>
+                                    <span>0%</span>
+                                </div>
+                            </div>
+                            <div class="card snapshot-card">
+                                <div class="card__body">
+                                    <h4>Shots Storyboarded</h4>
+                                    <div class="progress-bar">
+                                        <div class="progress-fill" data-progress="0"></div>
+                                    </div>
+                                    <span>0%</span>
+                                </div>
+                            </div>
+                            <div class="card snapshot-card">
+                                <div class="card__body">
+                                    <h4>Assets Generated</h4>
+                                    <div class="progress-bar">
+                                        <div class="progress-fill" data-progress="0"></div>
+                                    </div>
+                                    <span>0%</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Story Writer Section -->
+        <section id="story-writer" class="section">
+            <div class="container">
+                <div class="story-writer">
+                    <div class="writer-header">
+                        <h2>Writer's Room</h2>
+                        <div class="writer-actions">
+                            <button class="btn btn--outline" id="upload-script">Upload Script</button>
+                            <button class="btn btn--outline" id="save-story">Save</button>
+                            <button class="btn btn--outline" id="export-story">Export</button>
+                            <button class="btn btn--primary" id="convert-screenplay">Gemini Format Engine</button>
+                        </div>
+                    </div>
+                    
+                    <div class="writer-layout">
+                        <div class="writer-main">
+                            <div class="editor-toolbar">
+                                <button class="toolbar-btn" data-action="bold"><strong>B</strong></button>
+                                <button class="toolbar-btn" data-action="italic"><em>I</em></button>
+                                <button class="toolbar-btn" data-action="underline"><u>U</u></button>
+                                <button class="toolbar-btn" data-action="h1">H1</button>
+                                <button class="toolbar-btn" data-action="h2">H2</button>
+                                <button class="toolbar-btn" data-action="bullet-list">• List</button>
+                            </div>
+                            <div class="editor-container">
+                                <div id="story-editor" contenteditable="true" class="story-editor">
+                                    <!-- Content will be loaded by JS -->
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <aside class="ai-panel" id="ai-panel-container">
+                            <div id="ai-brainstorm-panel">
+                                <h3>Gemini Collaborator</h3>
+                                <div class="ai-input">
+                                    <textarea class="form-control" placeholder="Brainstorm ideas, ask for suggestions..." id="ai-prompt"></textarea>
+                                    <button class="btn btn--primary btn--full-width" id="ask-ai">Ask Gemini</button>
+                                </div>
+                                <div class="ai-response" id="ai-response">
+                                    <!-- AI responses will be populated here -->
+                                </div>
+                            </div>
+                            <div id="ai-refine-panel" class="hidden">
+                                <h3>Refine with Gemini</h3>
+                                <div class="refine-options">
+                                    <button class="btn btn--outline btn--sm refine-btn" data-refine-type="improve">Improve Writing</button>
+                                    <button class="btn btn--outline btn--sm refine-btn" data-refine-type="visual">Make More Visual</button>
+                                    <button class="btn btn--outline btn--sm refine-btn" data-refine-type="dialogue">Punch Up Dialogue</button>
+                                </div>
+                                <div class="ai-input">
+                                    <textarea class="form-control" placeholder="Or, enter a custom refinement prompt..." id="refine-prompt"></textarea>
+                                    <button class="btn btn--primary btn--full-width" id="refine-ai">Refine Selection</button>
+                                </div>
+                                <div class="ai-response" id="refine-response">
+                                    <!-- Refinement responses will be populated here -->
+                                </div>
+                            </div>
+                        </aside>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Story Bible Section -->
+        <section id="story-bible" class="section">
+            <div class="container">
+                <div class="story-bible">
+                    <div class="bible-header">
+                        <h2>Story Bible (The Lore Keeper)</h2>
+                        <button class="btn btn--primary" id="auto-populate">Analyze & Extract from Script</button>
+                    </div>
+                    
+                    <div class="bible-tabs">
+                        <button class="tab-btn active" data-tab="characters">Characters</button>
+                        <button class="tab-btn" data-tab="locations">Locations</button>
+                        <button class="tab-btn" data-tab="props">Key Props</button>
+                        <button class="tab-btn" data-tab="themes">Core Themes</button>
+                    </div>
+                    
+                    <div class="tab-content active" id="characters-tab">
+                        <div class="characters-grid" id="characters-grid-content">
+                            <!-- Character cards will be loaded by JS -->
+                        </div>
+                    </div>
+                    
+                    <div class="tab-content" id="locations-tab">
+                        <div class="locations-grid" id="locations-grid-content">
+                            <!-- Location cards will be loaded by JS -->
+                        </div>
+                    </div>
+
+                    <div class="tab-content" id="props-tab">
+                        <div class="props-grid" id="props-grid-content">
+                            <!-- Prop cards will be loaded by JS -->
+                        </div>
+                    </div>
+
+                    <div class="tab-content" id="themes-tab">
+                        <div class="themes-content" id="themes-content-area">
+                            <!-- Themes will be loaded by JS -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Visual DNA Section -->
+        <section id="visual-dna" class="section">
+            <div class="container">
+                <div class="visual-dna-header">
+                    <h2>Consistency Engine (Visual DNA)</h2>
+                    <p>Manage the visual identity of your project to ensure consistent generation.</p>
+                </div>
+                <div class="visual-dna-layout">
+                    <div class="card">
+                        <div class="card__body">
+                            <h3>Global Style Guide</h3>
+                            <div class="form-group">
+                                <label for="color-palette">Color Palette</label>
+                                <input type="text" id="color-palette" class="form-control" placeholder="e.g., Neon blues, electric purples, chrome silvers">
+                            </div>
+                            <div class="form-group">
+                                <label for="lighting-style">Lighting Style</label>
+                                <input type="text" id="lighting-style" class="form-control" placeholder="e.g., High-contrast noir, soft natural light">
+                            </div>
+                            <div class="form-group">
+                                <label for="cinematic-influences">Cinematic Influences</label>
+                                <input type="text" id="cinematic-influences" class="form-control" placeholder="e.g., Blade Runner, Ghost in the Shell">
+                            </div>
+                            <div class="card-actions">
+                                <button class="btn btn--primary" id="save-global-style">Save Global Style</button>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="card">
+                        <div class="card__body">
+                            <h3>Character DNA Kits</h3>
+                            <div id="character-dna-kits">
+                                <!-- Character DNA Kits will be loaded by JS -->
+                            </div>
+                        </div>
+                    </div>
+                    <div class="card">
+                        <div class="card__body">
+                            <h3>Location DNA Kits</h3>
+                            <div id="location-dna-kits">
+                                <!-- Location DNA Kits will be loaded by JS -->
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Shot Lab Section -->
+        <section id="shot-lab" class="section">
+            <div class="container">
+                <div class="shot-lab-header">
+                    <h2>Shot Lab (Breakdown & Storyboarding)</h2>
+                    <button class="btn btn--primary" id="import-screenplay-for-shots">AI-Assisted Breakdown</button>
+                </div>
+                <div class="shot-lab-layout">
+                    <div class="scenes-list-panel">
+                        <div class="panel-header">
+                            <h3>Scenes</h3>
+                            <button class="btn btn--sm btn--outline" id="add-scene-btn">Add Scene</button>
+                        </div>
+                        <div class="scenes-list" id="scenes-list-content">
+                            <!-- Scenes will be loaded by JS -->
+                        </div>
+                    </div>
+                    <div class="scene-detail-panel">
+                        <div class="panel-header">
+                            <h3>Scene Details</h3>
+                            <div class="scene-actions">
+                                <button class="btn btn--sm btn--primary" id="ai-breakdown-btn" disabled>AI Breakdown</button>
+                                <button class="btn btn--sm btn--outline" id="add-shot-btn" disabled>Add Shot</button>
+                            </div>
+                        </div>
+                        <div class="scene-info" id="scene-info-content">
+                            <p class="placeholder-text">Select a scene to view details and manage shots</p>
+                        </div>
+                        <div class="scene-context-panel">
+                            <h4>Scene Context</h4>
+                            <div id="scene-context-suggestions">
+                                <!-- Context suggestions will be loaded by JS -->
+                            </div>
+                        </div>
+                        <div class="shots-list" id="shots-list-content">
+                            <!-- Shot list will be loaded by JS -->
+                        </div>
+                    </div>
+                    <div class="storyboard-panel">
+                        <div class="panel-header">
+                            <h3>Storyboard</h3>
+                            <div class="storyboard-actions">
+                                <button class="btn btn--sm btn--outline" id="upload-images">Upload Images</button>
+                                <button class="btn btn--sm btn--primary" id="send-to-screening-room">Send to Screening Room</button>
+                                <button class="btn btn--sm btn--outline" id="export-storyboard">Export Storyboard</button>
+                            </div>
+                        </div>
+                        <div class="storyboard-grid" id="storyboard-grid-content">
+                            <!-- Storyboard frames will be loaded by JS -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Asset Nexus Section -->
+        <section id="asset-nexus" class="section">
+            <div class="container">
+                <div class="asset-nexus-header">
+                    <h2>Asset Nexus</h2>
+                    <p>Centralized library for all generated and imported media.</p>
+                </div>
+                <div class="asset-actions">
+                    <div class="upload-section">
+                        <button class="btn btn--primary" id="upload-visual-asset-btn">Upload Visual Asset</button>
+                        <button class="btn btn--outline" id="upload-text-asset-btn">Upload Text/Document</button>
+                    </div>
+                    <div class="search-filters">
+                        <input type="text" class="form-control" placeholder="Search assets..." id="asset-search">
+                        <select class="form-control" id="asset-type-filter" title="Filter by asset type">
+                            <option value="all">All Types</option>
+                            <option value="image">Images</option>
+                            <option value="video">Videos</option>
+                            <option value="audio">Audio</option>
+                            <option value="text">Text/Documents</option>
+                        </select>
+                        <select class="form-control" id="asset-status-filter" title="Filter by status">
+                            <option value="all">All Status</option>
+                            <option value="pending">Pending</option>
+                            <option value="approved">Approved</option>
+                            <option value="rejected">Rejected</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <div class="asset-stats" id="asset-stats">
+                    <!-- Asset statistics will be shown here -->
+                </div>
+                
+                <div class="asset-grid" id="asset-grid-content">
+                    <!-- Assets will be loaded here -->
+                </div>
+            </div>
+        </section>
+
+        <!-- Screening Room Section -->
+        <section id="screening-room" class="section">
+            <div class="container">
+                <div class="screening-room-header">
+                    <h2>Screening Room</h2>
+                    <p>Assemble animatics to review pacing and structure.</p>
+                    <div class="screening-room-actions">
+                        <button class="btn btn--primary" id="populate-timeline-btn">Populate from Shot Lab</button>
+                        <button class="btn btn--outline" id="clear-timeline-btn">Clear Timeline</button>
+                        <button class="btn btn--outline" id="export-animatic-btn">Export Animatic</button>
+                    </div>
+                </div>
+                
+                <div class="animatic-workspace">
+                    <!-- Timeline Controls -->
+                    <div class="timeline-controls">
+                        <div class="playback-controls">
+                            <button class="btn btn--sm" id="play-pause-btn">▶</button>
+                            <button class="btn btn--sm" id="stop-btn">⏹</button>
+                            <button class="btn btn--sm" id="prev-frame-btn">⏮</button>
+                            <button class="btn btn--sm" id="next-frame-btn">⏭</button>
+                        </div>
+                        <div class="timeline-info">
+                            <span id="current-time">00:00</span> / <span id="total-time">00:00</span>
+                            <span class="frame-counter">Frame <span id="current-frame">0</span> of <span id="total-frames">0</span></span>
+                        </div>
+                        <div class="timeline-settings">
+                            <label for="default-frame-duration">Default Duration (sec):</label>
+                            <input type="number" id="default-frame-duration" value="3" min="0.5" max="10" step="0.5" class="form-control">
+                        </div>
+                    </div>
+                    
+                    <!-- Timeline Track -->
+                    <div class="timeline-track" id="timeline-track">
+                        <div class="timeline-ruler" id="timeline-ruler"></div>
+                        <div class="timeline-frames" id="timeline-frames">
+                            <div class="timeline-empty-state">
+                                <p>Timeline is empty. Use "Populate from Shot Lab" to automatically add approved storyboard images, or drag shots from scenes below.</p>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Shot Library -->
+                    <div class="shot-library">
+                        <h4>Available Shots by Scene</h4>
+                        <div class="shot-library-content" id="shot-library-content">
+                            <!-- Will be populated with scenes and their shots -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <script src="app.js"></script>
+
+    <!-- Prompt Workbench Modal -->
+    <div id="prompt-workbench-modal" class="modal-overlay hidden">
+        <div class="modal-content">
+            <button class="modal-close-btn" id="modal-close-btn">&times;</button>
+            <h3>Prompt Workbench</h3>
+            <p>Build AI generation prompts using keywords from your Visual DNA</p>
+            
+            <div class="prompt-display">
+                <label for="prompt-workbench-textarea">Generated Prompt</label>
+                <textarea id="prompt-workbench-textarea" class="form-control" rows="6" placeholder="Your AI generation prompt will be built here..."></textarea>
+            </div>
+            
+            <div class="keyword-section">
+                <h4>Global Style Keywords</h4>
+                <div class="keyword-bank" id="global-keyword-bank">
+                    <!-- Global keywords will be loaded here -->
+                </div>
+            </div>
+            
+            <div class="keyword-section">
+                <h4>Character Keywords</h4>
+                <div class="keyword-bank" id="character-keyword-bank">
+                    <!-- Character keywords will be loaded here -->
+                </div>
+            </div>
+            
+            <div class="keyword-section">
+                <h4>Location Keywords</h4>
+                <div class="keyword-bank" id="location-keyword-bank">
+                    <!-- Location keywords will be loaded here -->
+                </div>
+            </div>
+            
+            <div class="keyword-section">
+                <h4>Smart Context Suggestions</h4>
+                <div class="smart-suggestions-container">
+                    <div class="smart-suggestion-group">
+                        <h5>Related Assets</h5>
+                        <div class="keyword-bank" id="context-assets-bank">
+                            <!-- Context-aware assets will be loaded here -->
+                        </div>
+                    </div>
+                    <div class="smart-suggestion-group">
+                        <h5>Scene Analysis</h5>
+                        <div class="keyword-bank" id="smart-prompts-bank">
+                            <!-- Smart prompt suggestions will be loaded here -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="modal-actions">
+                <button class="btn btn--outline" id="clear-prompt-btn">Clear Prompt</button>
+                <button class="btn btn--primary" id="copy-prompt-btn">Copy Prompt</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Confirmation Modal -->
+    <div id="confirmation-modal" class="modal-overlay hidden">
+        <div class="modal-content">
+            <h3 id="confirmation-title">Confirm Action</h3>
+            <p id="confirmation-message">Are you sure you want to proceed?</p>
+            
+            <div class="modal-actions">
+                <button class="btn btn--outline" id="confirmation-cancel">Cancel</button>
+                <button class="btn btn--primary" id="confirmation-confirm">Confirm</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- AI Shot Suggestions Modal -->
+    <div id="shot-suggestions-modal" class="modal-overlay hidden">
+        <div class="modal-content">
+            <button class="modal-close-btn" id="suggestions-modal-close-btn">&times;</button>
+            <h3>AI Shot Suggestions</h3>
+            <p>Gemini has analyzed your scene and suggests the following shots:</p>
+            
+            <div class="suggestions-list" id="suggestions-list-content">
+                <!-- AI suggestions will be loaded here -->
+            </div>
+            
+            <div class="modal-actions">
+                <button class="btn btn--outline" id="reject-all-shots">Reject All</button>
+                <button class="btn btn--primary" id="accept-selected-shots">Accept Selected</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Scene Editor Modal -->
+    <div id="scene-editor-modal" class="modal-overlay hidden">
+        <div class="modal-content">
+            <button class="modal-close-btn" id="scene-editor-close-btn">&times;</button>
+            <h3 id="scene-editor-title">Add New Scene</h3>
+            
+            <div class="form-group">
+                <label for="scene-title-input">Scene Title</label>
+                <input type="text" id="scene-title-input" class="form-control" placeholder="e.g., INT. MAYA'S APARTMENT - NIGHT">
+            </div>
+            
+            <div class="form-group">
+                <label for="scene-description-input">Scene Description</label>
+                <textarea id="scene-description-input" class="form-control" rows="4" placeholder="Describe what happens in this scene..."></textarea>
+            </div>
+            
+            <div class="modal-actions">
+                <button class="btn btn--outline" id="cancel-scene-edit">Cancel</button>
+                <button class="btn btn--primary" id="save-scene">Save Scene</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Asset Upload Modal -->
+    <div id="asset-upload-modal" class="modal-overlay hidden">
+        <div class="modal-content">
+            <button class="modal-close-btn" id="asset-modal-close-btn">&times;</button>
+            <h3>Upload Asset</h3>
+            
+            <div class="upload-zone" id="asset-upload-zone">
+                <div class="upload-zone-content">
+                    <div class="upload-icon">📁</div>
+                    <p>Drop files here or click to browse</p>
+                    <small>Supports images, videos, audio, and documents</small>
+                </div>
+            </div>
+            
+            <div class="asset-metadata-form" id="asset-metadata-form" style="display: none;">
+                <div class="form-group">
+                    <label for="asset-category-input">Category</label>
+                    <select id="asset-category-input" class="form-control">
+                        <option value="storyboard">Storyboard</option>
+                        <option value="reference">Reference</option>
+                        <option value="concept">Concept Art</option>
+                        <option value="character">Character</option>
+                        <option value="location">Location</option>
+                        <option value="prop">Prop</option>
+                        <option value="audio">Audio</option>
+                        <option value="document">Document</option>
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label for="asset-tags-input">Tags (comma-separated)</label>
+                    <input type="text" id="asset-tags-input" class="form-control" placeholder="dramatic lighting, close-up, night scene">
+                </div>
+                
+                <div class="ai-analysis-section" id="ai-analysis-section" style="display: none;">
+                    <h4>AI Analysis</h4>
+                    <div class="ai-analysis-content" id="ai-analysis-content">
+                        <!-- AI analysis will be shown here -->
+                    </div>
+                    <div class="suggested-tags" id="suggested-tags">
+                        <!-- Suggested tags will appear here -->
+                    </div>
+                </div>
+            </div>
+            
+            <div class="modal-actions">
+                <button class="btn btn--outline" id="cancel-asset-upload">Cancel</button>
+                <button class="btn btn--primary" id="confirm-asset-upload" disabled>Upload Asset</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Asset Detail Modal -->
+    <div id="asset-detail-modal" class="modal-overlay hidden">
+        <div class="modal-content large">
+            <button class="modal-close-btn" id="asset-detail-close-btn">&times;</button>
+            <div class="asset-detail-content" id="asset-detail-content">
+                <!-- Asset details will be loaded here -->
+            </div>
+        </div>
+    </div>
+</body>
+</html>
