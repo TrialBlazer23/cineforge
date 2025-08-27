@@ -5,7 +5,7 @@ import os
 import vertexai
 from vertexai.vision_models import ImageGenerationModel
 
-def generate_storyboard_image(shot_description, scene_number, shot_number, project, location, style):
+def generate_storyboard_image(shot_description, scene_number, shot_number, project, location, style, narrative_schema):
     """Generates a storyboard image from a shot description using Imagen."""
     print(f"Generating image for Scene {scene_number}, Shot {shot_number}...")
     try:
@@ -16,7 +16,20 @@ def generate_storyboard_image(shot_description, scene_number, shot_number, proje
             config = json.load(f)
             style_prompt = config["styles"].get(style, "")
 
-        prompt = f"{shot_description}\n\nStyle: {style_prompt}"
+        characters_in_shot = [char["name"] for char in narrative_schema["characters"] if char["name"] in shot_description]
+
+        scene_info = next((scene for scene in narrative_schema["scenes"] if scene["scene_number"] == int(scene_number)), None)
+        location = scene_info.get("setting", "") if scene_info else ""
+
+        prompt = f"{shot_description}\n\n"
+        if characters_in_shot:
+            prompt += f"Use the character portrait for '{', '.join(characters_in_shot)}' "
+        if location:
+            prompt += f"and the environment plate for '{location}' "
+        if characters_in_shot or location:
+            prompt += "as a reference for this shot.\n\n"
+
+        prompt += f"Style: {style_prompt}"
 
         images = model.generate_images(
             prompt=prompt,
@@ -36,6 +49,7 @@ def generate_storyboard_image(shot_description, scene_number, shot_number, proje
 def main():
     parser = argparse.ArgumentParser(description="Generate storyboard images from a storyboard file.")
     parser.add_argument("storyboard_file", help="The path to the text-based storyboard file.")
+    parser.add_argument("narrative_schema_file", help="The path to the narrative schema JSON file.")
     parser.add_argument("--project", help="Your Google Cloud project ID.", required=True)
     parser.add_argument("--location", help="The Google Cloud location.", default="us-central1")
     parser.add_argument("--scene", help="The scene number to generate.", type=int)
@@ -45,6 +59,13 @@ def main():
     try:
         with open(args.storyboard_file, "r") as f:
             storyboard_content = f.read()
+    except FileNotFoundError as e:
+        print(f"Error: {e}")
+        return
+
+    try:
+        with open(args.narrative_schema_file, "r") as f:
+            narrative_schema = json.load(f)
     except FileNotFoundError as e:
         print(f"Error: {e}")
         return
@@ -62,10 +83,10 @@ def main():
     for scene_number, shot_number, shot_description in shots:
         if args.scene is not None and args.shot is not None:
             if int(scene_number) == args.scene and int(shot_number) == args.shot:
-                generate_storyboard_image(shot_description.strip(), scene_number, shot_number, args.project, args.location, style)
+                generate_storyboard_image(shot_description.strip(), scene_number, shot_number, args.project, args.location, style, narrative_schema)
                 break
         else:
-            generate_storyboard_image(shot_description.strip(), scene_number, shot_number, args.project, args.location, style)
+            generate_storyboard_image(shot_description.strip(), scene_number, shot_number, args.project, args.location, style, narrative_schema)
 
     print("\nStoryboard image generation complete.")
 
