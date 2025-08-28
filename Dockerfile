@@ -11,7 +11,7 @@ WORKDIR /app
 # Leverage build cache for dependencies
 COPY requirements.txt ./
 RUN pip install --upgrade pip && \
-    pip wheel --no-cache-dir --no-deps -r requirements.txt -w /wheels
+    pip wheel --no-cache-dir -r requirements.txt -w /wheels
 
 #########################
 # Runtime (final image) #
