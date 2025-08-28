@@ -10,3 +10,4 @@ uvicorn
 requests
 gunicorn
 python-multipart
+python-dotenv

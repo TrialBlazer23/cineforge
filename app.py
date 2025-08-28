@@ -1,8 +1,8 @@
-
 import os
 import json
 import argparse
 import re
+from src import utils
 from api import (
     deconstruct_narrative,
     generate_screenplay_and_storyboard,
@@ -11,15 +11,18 @@ from api import (
 
 def main():
     """Main function to run the narrative-to-video pipeline."""
-    
+    # Load env vars from .env if present
+    utils.load_env()
+
     with open("config.json", "r") as f:
         config = json.load(f)
         styles = list(config["styles"].keys())
 
     parser = argparse.ArgumentParser(description="Narrative to Video Pipeline")
     parser.add_argument("story_file", help="Path to the story file")
+    # Defaults now provided from environment variables via utils.add_vertex_args semantics
     parser.add_argument("--project", default=os.environ.get("VERTEX_PROJECT_ID"), help="GCP project ID")
-    parser.add_argument("--location", default=os.environ.get("VERTEX_LOCATION"), help="GCP location")
+    parser.add_argument("--location", default=os.environ.get("VERTEX_LOCATION", "us-central1"), help="GCP location")
     parser.add_argument("--style", choices=styles, help="The visual style to use for the generated images.")
     parser.add_argument("--regenerate-shot", nargs=2, metavar=("SCENE", "SHOT"), help="Regenerate a specific shot (scene and shot number)")
     parser.add_argument("--delete-shot", nargs=2, metavar=("SCENE", "SHOT"), help="Delete a specific shot (scene and shot number)")

@@ -4,13 +4,29 @@ import os
 import re
 from typing import Any, Dict, List, Optional, Tuple
 
+try:
+    from dotenv import load_dotenv  # type: ignore
+except Exception:
+    # Allow running without python-dotenv installed (best effort)
+    def load_dotenv(*args, **kwargs):  # type: ignore
+        return False
+
 
 # ---------------
 # Argparse helpers
 # ---------------
 def add_vertex_args(parser: argparse.ArgumentParser) -> None:
-    parser.add_argument("--project", help="Your Google Cloud project ID.", required=True)
-    parser.add_argument("--location", help="The Google Cloud location.", default="us-central1")
+    # Defaults sourced from environment variables if available
+    parser.add_argument(
+        "--project",
+        help="Your Google Cloud project ID.",
+        default=os.environ.get("VERTEX_PROJECT_ID"),
+    )
+    parser.add_argument(
+        "--location",
+        help="The Google Cloud location.",
+        default=os.environ.get("VERTEX_LOCATION", "us-central1"),
+    )
 
 
 def add_style_args(parser: argparse.ArgumentParser) -> None:
@@ -94,6 +110,15 @@ def resolve_style_prompt(style_profile: str, config_path: str = "config.json") -
         return style_profile
     except Exception:
         return style_profile
+
+
+def load_env(env_file: Optional[str] = None) -> None:
+    """Load environment variables from a .env file if present, no-op if missing."""
+    # Load order: explicit env_file > default .env
+    if env_file and os.path.exists(env_file):
+        load_dotenv(env_file)
+    else:
+        load_dotenv()
 
 
 # --------------------
