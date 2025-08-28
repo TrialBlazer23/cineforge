@@ -2,8 +2,15 @@ import argparse
 import json
 import re
 import os
+import sys
 import vertexai
 from vertexai.vision_models import ImageGenerationModel
+try:
+    from . import utils  # type: ignore
+except Exception:
+    # Allow running as a script: python src/generate_storyboard_images.py
+    sys.path.append(os.path.dirname(__file__))
+    import utils  # type: ignore
 
 def generate_storyboard_image(shot_description, scene_number, shot_number, project, gcp_location, style_profile, narrative_schema):
     """Generates a storyboard image for a shot, honoring a style_profile for visual coherence."""
@@ -13,20 +20,10 @@ def generate_storyboard_image(shot_description, scene_number, shot_number, proje
         model = ImageGenerationModel.from_pretrained("imagen-3.0-fast-generate-001")
 
         # Resolve style prompt from config; fallback to the provided style_profile string itself.
-        style_prompt = None
-        try:
-            with open("config.json", "r") as f:
-                config = json.load(f)
-                styles_map = config.get("styles", {}) if isinstance(config, dict) else {}
-                style_prompt = styles_map.get(style_profile)
-        except FileNotFoundError:
-            style_prompt = None
-        style_prompt = style_prompt or style_profile
+        style_prompt = utils.resolve_style_prompt(style_profile)
 
-        characters_in_shot = [char["name"] for char in narrative_schema["characters"] if char["name"] in shot_description]
-
-        scene_info = next((scene for scene in narrative_schema["scenes"] if scene["scene_number"] == int(scene_number)), None)
-        scene_setting = scene_info.get("setting", "") if scene_info else ""
+        characters_in_shot = utils.get_characters_in_shot(shot_description, narrative_schema)
+        scene_setting = utils.get_scene_setting(int(scene_number), narrative_schema)
 
         prompt = f"{shot_description}\n\n"
         if characters_in_shot:
@@ -57,13 +54,9 @@ def main():
     parser = argparse.ArgumentParser(description="Generate storyboard images from a storyboard file.")
     parser.add_argument("storyboard_file", help="The path to the text-based storyboard file.")
     parser.add_argument("narrative_schema_file", help="The path to the narrative schema JSON file.")
-    parser.add_argument("--project", help="Your Google Cloud project ID.", required=True)
-    parser.add_argument("--location", help="The Google Cloud location.", default="us-central1")
-    parser.add_argument("--scene", help="The scene number to generate.", type=int)
-    parser.add_argument("--shot", help="The shot number to generate.", type=int)
-    parser.add_argument("--style-profile", dest="style_profile", help="A style profile to guide all generations (e.g., 'Studio Ghibli', 'film noir').")
-    # Back-compat alias
-    parser.add_argument("--style", dest="legacy_style", help="Deprecated. Use --style-profile instead.")
+    utils.add_vertex_args(parser)
+    utils.add_scene_shot_args(parser)
+    utils.add_style_args(parser)
     args = parser.parse_args()
 
     try:
@@ -80,44 +73,9 @@ def main():
         print(f"Error: {e}")
         return
 
-    project_settings_file = "output/project_settings.json"
-    style_profile = None
-    # Resolve style_profile priority: CLI > project settings > default
-    if args.style_profile:
-        style_profile = args.style_profile
-    elif args.legacy_style:
-        style_profile = args.legacy_style
-    else:
-        if os.path.exists(project_settings_file):
-            try:
-                with open(project_settings_file, "r") as f:
-                    project_settings = json.load(f)
-                    style_profile = project_settings.get("style_profile") or project_settings.get("style")
-            except Exception:
-                style_profile = None
-    if not style_profile:
-        style_profile = "photorealistic"
+    style_profile = utils.resolve_style_profile(args.style_profile, args.legacy_style)
 
-    # Persist chosen style_profile for coherence across runs
-    try:
-        os.makedirs(os.path.dirname(project_settings_file), exist_ok=True)
-        existing = {}
-        if os.path.exists(project_settings_file):
-            with open(project_settings_file, "r") as f:
-                try:
-                    existing = json.load(f) or {}
-                except Exception:
-                    existing = {}
-        existing["style_profile"] = style_profile
-        # Also maintain legacy key for other scripts
-        existing["style"] = style_profile
-        with open(project_settings_file, "w") as f:
-            json.dump(existing, f, indent=2)
-    except Exception:
-        pass
-
-    shot_regex = re.compile(r"SCENE (\d+), SHOT (\d+):\n(.*?)(?=\nSCENE|\Z)", re.DOTALL)
-    shots = shot_regex.findall(storyboard_content)
+    shots = utils.parse_storyboard_shots(storyboard_content)
 
     for scene_number, shot_number, shot_description in shots:
         if args.scene is not None:
