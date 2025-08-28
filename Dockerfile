@@ -1,30 +1,53 @@
-# Use an official Python runtime as a parent image
-FROM python:3.10-slim
+###############################
+# Builder stage (wheels only) #
+###############################
+FROM python:3.10.12-slim-buster AS builder
 
-# Set the working directory in the container
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1
+
 WORKDIR /app
 
-# Install system dependencies
-# ffmpeg is required for pydub (audio manipulation) and video assembly
+# Leverage build cache for dependencies
+COPY requirements.txt ./
+RUN pip install --upgrade pip && \
+    pip wheel --no-cache-dir --no-deps -r requirements.txt -w /wheels
+
+#########################
+# Runtime (final image) #
+#########################
+FROM python:3.10.12-slim-buster AS runtime
+
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PORT=8080
+
+WORKDIR /app
+
+# Install only runtime system dependencies
+# ffmpeg is required for pydub and video assembly
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    ffmpeg \
+      ffmpeg \
+      ca-certificates \
     && rm -rf /var/lib/apt/lists/*
 
-# Create a non-root user
-RUN useradd --create-home appuser
-USER appuser
+# Copy wheels from builder and install
+COPY --from=builder /wheels /wheels
+COPY requirements.txt ./
+RUN pip install --no-cache-dir --no-index --find-links=/wheels -r requirements.txt && \
+    rm -rf /wheels
 
-# Copy the dependencies file to the working directory
-COPY --chown=appuser:appuser requirements.txt .
+# Create non-root user
+RUN useradd --create-home --shell /usr/sbin/nologin appuser
 
-# Install any needed packages specified in requirements.txt
-RUN pip install --no-cache-dir -r requirements.txt
-
-# Copy the rest of the application's code
+# Copy application code
 COPY --chown=appuser:appuser . .
 
-# Make port 8080 available to the world outside this container
+# Expose port
 EXPOSE 8080
 
-# Run app.py when the container launches
-CMD exec /home/appuser/.local/bin/gunicorn --bind :$PORT --workers 1 --threads 8 --timeout 0 -k uvicorn.workers.UvicornWorker api:app
+# Drop privileges
+USER appuser
+
+# Start the API with Gunicorn + Uvicorn worker
+CMD ["gunicorn", "--bind", ":${PORT}", "--workers", "1", "--threads", "8", "--timeout", "0", "-k", "uvicorn.workers.UvicornWorker", "api:app"]
