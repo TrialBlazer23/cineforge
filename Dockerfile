@@ -1,7 +1,7 @@
 ###############################
 # Builder stage (wheels only) #
 ###############################
-FROM python:3.10.12-slim-buster AS builder
+FROM python:3.10.14-slim-bookworm AS builder
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1
@@ -16,7 +16,7 @@ RUN pip install --upgrade pip && \
 #########################
 # Runtime (final image) #
 #########################
-FROM python:3.10.12-slim-buster AS runtime
+FROM python:3.10.14-slim-bookworm AS runtime
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
@@ -26,6 +26,7 @@ WORKDIR /app
 
 # Install only runtime system dependencies
 # ffmpeg is required for pydub and video assembly
+ENV DEBIAN_FRONTEND=noninteractive
 RUN apt-get update && apt-get install -y --no-install-recommends \
       ffmpeg \
       ca-certificates \
