@@ -37,7 +37,7 @@ def generate_environment_plate(location_name, project, location):
         model = ImageGenerationModel.from_pretrained("imagen-3.0-fast-generate-001")
 
         prompt = (
-            f"An environment concept art plate for "{location_name}". "
+            f"An environment concept art plate for \"{location_name}\". "
             f"Art style: 3D cartoon animation, cinematic lighting."
         )
 

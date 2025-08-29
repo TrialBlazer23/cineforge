@@ -1,6 +1,30 @@
-__pycache__/
+# VCS
 .git/
 .gitignore
-output/
+
+# Python cache/venvs
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.pytest_cache/
 venv/
+.venv/
+*.egg-info/
+
+# Local env and credentials (mounted via volumes)
+.env
+application_default_credentials.json
+
+# Runtime output
+output/
+.storyboard_cache/
+
+# Editors/OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Misc
 *.md

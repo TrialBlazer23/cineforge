@@ -11,3 +11,7 @@ requests
 gunicorn
 python-multipart
 python-dotenv
+celery[redis]
+redis
+flower
+pyyaml

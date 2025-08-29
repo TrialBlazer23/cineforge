@@ -1,8 +1,10 @@
 import argparse
 import os
 import re
+import ffmpeg
 import vertexai
 from vertexai.preview.vision_models import VideoGenerationModel
+from collections import defaultdict
 
 def generate_video_clip(shot_description, image_path, scene_number, shot_number, project, location):
     """Generates a video clip from an image and a description using Veo."""
@@ -13,12 +15,10 @@ def generate_video_clip(shot_description, image_path, scene_number, shot_number,
     with open(image_path, "rb") as image_file:
         input_image = image_file.read()
 
-    # The Veo API is expected to take both an image and a prompt.
-    # The exact method and parameters might differ slightly.
     videos = model.generate(
         prompt=shot_description,
         image=input_image,
-        video_length_sec=8, # As per the document, generate 8-second clips
+        video_length_sec=8,
         aspect_ratio="16:9"
     )
 
@@ -48,17 +48,43 @@ def main():
     shot_regex = re.compile(r"SCENE (\d+), SHOT (\d+):\n(.*?)(?=\nSCENE|\Z)", re.DOTALL)
     shots = shot_regex.findall(storyboard_content)
 
+    shots_by_scene = defaultdict(list)
     for scene_number, shot_number, shot_description in shots:
-        if args.scene is not None and int(scene_number) != args.scene:
+        shots_by_scene[int(scene_number)].append((shot_number, shot_description))
+
+    for scene_number, scene_shots in shots_by_scene.items():
+        if args.scene is not None and scene_number != args.scene:
             continue
 
-        image_name = f"scene_{scene_number}_shot_{shot_number}.png"
-        image_path = os.path.join(args.images_directory, image_name)
+        generated_shot_paths = []
+        for shot_number, shot_description in scene_shots:
+            image_name = f"scene_{scene_number}_shot_{shot_number}.png"
+            image_path = os.path.join(args.images_directory, image_name)
 
-        if os.path.exists(image_path):
-            generate_video_clip(shot_description.strip(), image_path, scene_number, shot_number, args.project, args.location)
-        else:
-            print(f"Warning: Image not found for Scene {scene_number}, Shot {shot_number} at {image_path}")
+            if os.path.exists(image_path):
+                video_path = generate_video_clip(shot_description.strip(), image_path, scene_number, shot_number, args.project, args.location)
+                generated_shot_paths.append(video_path)
+            else:
+                print(f"Warning: Image not found for Scene {scene_number}, Shot {shot_number} at {image_path}")
+
+        if generated_shot_paths:
+            scene_video_path = os.path.join("output", "video_clips", f"scene_{scene_number}.mp4")
+            
+            # Create a temporary file with the list of video files for concatenation
+            concat_file_path = os.path.join("output", "video_clips", f"concat_scene_{scene_number}.txt")
+            with open(concat_file_path, "w") as f:
+                for path in generated_shot_paths:
+                    f.write(f"file '{os.path.basename(path)}'\n")
+            
+            (ffmpeg.input(concat_file_path, format='concat', safe=0)
+             .output(scene_video_path, c='copy').run(overwrite_output=True))
+
+            print(f"Concatenated shots into {scene_video_path}")
+
+            # Clean up individual shot videos and concat file
+            for path in generated_shot_paths:
+                os.remove(path)
+            os.remove(concat_file_path)
 
     print("\nVideo synthesis complete.")
 

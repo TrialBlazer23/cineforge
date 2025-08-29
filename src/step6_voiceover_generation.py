@@ -1,4 +1,3 @@
-
 import argparse
 import os
 from google.cloud import texttospeech
@@ -15,7 +14,8 @@ def generate_voiceover(project_id: str, screenplay_path: str, output_path: str):
 
     # Extract dialogue from the screenplay (simple extraction logic)
     dialogue_lines = []
-    for line in screenplay.split('\n'):
+    for line in screenplay.split('
+'):
         if line.isupper() and not line.startswith('SCENE') and not line.startswith('INT.') and not line.startswith('EXT.'):
             # This is likely a character name
             pass

@@ -20,7 +20,7 @@ FROM python:3.10.14-slim-bookworm AS runtime
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
-    PORT=8080
+    PORT=8000
 
 WORKDIR /app
 
@@ -44,11 +44,11 @@ RUN useradd --create-home --shell /usr/sbin/nologin appuser
 # Copy application code
 COPY --chown=appuser:appuser . .
 
-# Expose port
-EXPOSE 8080
+# Expose default API port
+EXPOSE 8000
 
 # Drop privileges
 USER appuser
 
-# Start the API with Gunicorn + Uvicorn worker
+# Default command starts the API; workers are started in compose
 CMD ["gunicorn", "--bind", ":${PORT}", "--workers", "1", "--threads", "8", "--timeout", "0", "-k", "uvicorn.workers.UvicornWorker", "api:app"]

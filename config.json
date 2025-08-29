@@ -1,4 +1,24 @@
 {
+    "vertex": {
+        "location": "us-central1",
+        "models": {
+            "narrative": "gemini-2.5-pro",
+            "screenplay": "gemini-2.5-flash",
+            "storyboard": "gemini-2.5-flash"
+        },
+        "generation": {
+            "narrative": { "max_output_tokens": 8192, "temperature": 0.2, "top_p": 1.0 },
+            "screenplay": { "max_output_tokens": 8192, "temperature": 0.7, "top_p": 1.0 },
+            "storyboard": { "max_output_tokens": 8192, "temperature": 0.7, "top_p": 1.0 }
+        }
+    },
+    "paths": {
+        "base_output_dir": "output",
+        "narrative_schema_dir": "output/narrative_schema",
+        "screenplay_dir": "output/screenplay",
+        "storyboard_text_dir": "output/storyboard_text",
+        "projects_state_dir": "output/projects"
+    },
     "styles": {
         "cinematic-anime": "cinematic anime, epic, detailed, beautiful, expressive, vibrant colors",
         "classic-disney": "classic disney animation, hand-drawn, whimsical, expressive, vibrant colors",

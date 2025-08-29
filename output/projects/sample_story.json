@@ -1,0 +1,78 @@
+{
+  "project": "sample_story",
+  "created_at": "2025-08-29T10:28:45Z",
+  "updated_at": "2025-08-29T10:34:19Z",
+  "steps": {
+    "narrative_deconstructed": {
+      "status": "running",
+      "started_at": "2025-08-29T10:28:45Z",
+      "finished_at": "2025-08-29T10:28:46Z",
+      "error": "Unable to find your project. Please provide a project ID by:\n- Passing a constructor argument\n- Using vertexai.init()\n- Setting project using 'gcloud config set project my-project'\n- Setting a GCP environment variable\n- To create a Google Cloud project, please follow guidance at https://developers.google.com/workspace/guides/create-project",
+      "outputs": {}
+    },
+    "screenplay_generated": {
+      "status": "not_started",
+      "started_at": null,
+      "finished_at": null,
+      "error": null,
+      "outputs": {}
+    },
+    "storyboard_generated": {
+      "status": "not_started",
+      "started_at": null,
+      "finished_at": null,
+      "error": null,
+      "outputs": {}
+    },
+    "visual_assets_generated": {
+      "status": "not_started",
+      "started_at": null,
+      "finished_at": null,
+      "error": null,
+      "outputs": {}
+    },
+    "video_synthesized": {
+      "status": "not_started",
+      "started_at": null,
+      "finished_at": null,
+      "error": null,
+      "outputs": {}
+    }
+  },
+  "artifacts": {
+    "schema_file": null,
+    "screenplay_file": null,
+    "storyboard_file": null,
+    "video_file": null
+  },
+  "history": [
+    {
+      "time": "2025-08-29T10:28:45Z",
+      "event": "step:narrative_deconstructed:running",
+      "meta": {
+        "prev": "not_started"
+      }
+    },
+    {
+      "time": "2025-08-29T10:28:46Z",
+      "event": "step:narrative_deconstructed:failed",
+      "meta": {
+        "prev": "running"
+      }
+    },
+    {
+      "time": "2025-08-29T10:28:46Z",
+      "event": "step:narrative_deconstructed:error",
+      "meta": {
+        "error": "Unable to find your project. Please provide a project ID by:\n- Passing a constructor argument\n- Using vertexai.init()\n- Setting project using 'gcloud config set project my-project'\n- Setting a GCP environment variable\n- To create a Google Cloud project, please follow guidance at https://developers.google.com/workspace/guides/create-project"
+      }
+    },
+    {
+      "time": "2025-08-29T10:34:19Z",
+      "event": "step:narrative_deconstructed:running",
+      "meta": {
+        "prev": "failed"
+      }
+    }
+  ]
+}
