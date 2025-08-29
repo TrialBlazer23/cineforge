@@ -154,10 +154,17 @@ def api_migrate_json_to_sqlite():
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-from src.pipeline import (
-    deconstruct_narrative,
-    generate_screenplay_and_storyboard,
-    generate_visual_assets,
-    synthesize_video_from_storyboard,
-)
+try:
+    from src.pipeline import (
+        deconstruct_narrative,
+        generate_screenplay_and_storyboard,
+        generate_visual_assets,
+        synthesize_video_from_storyboard,
+    )
+except ImportError:
+    # Fallback functions if pipeline import fails
+    deconstruct_narrative = None  # type: ignore
+    generate_screenplay_and_storyboard = None  # type: ignore
+    generate_visual_assets = None  # type: ignore
+    synthesize_video_from_storyboard = None  # type: ignore
 

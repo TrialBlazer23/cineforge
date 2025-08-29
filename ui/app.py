@@ -16,6 +16,9 @@ except Exception:
     import utils  # type: ignore
 
 # Import pipeline functions
+import sys
+import pathlib
+sys.path.append(str(pathlib.Path(__file__).resolve().parents[1]))
 import api as cine_api
 import requests
 

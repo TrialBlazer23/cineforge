@@ -1,0 +1,23 @@
+# CineForge Environment Configuration Sample
+# Copy this file to .env and fill in your actual values
+
+# Google Cloud Settings (Required)
+VERTEX_PROJECT_ID=your-gcp-project-id
+VERTEX_LOCATION=us-central1
+
+# Google Cloud Credentials
+# You need to set up Google Cloud credentials for Vertex AI access
+# Option 1: Service account key file (recommended for local development)
+GOOGLE_APPLICATION_CREDENTIALS=./application_default_credentials.json
+# Option 2: Use 'gcloud auth application-default login' and leave above blank
+
+# Backend Configuration (automatically set for Replit)
+BACKEND_URL=https://your-replit-domain.replit.dev:8000
+
+# Redis Configuration (for task queue)
+REDIS_HOST=localhost
+REDIS_PORT=6379
+REDIS_DB=0
+
+# Optional: Docker Compose profiles
+COMPOSE_PROFILES=ui
