@@ -91,6 +91,23 @@ def generate_screenplay_and_storyboard(schema_file: str, project: str, location:
     model = GenerativeModel("gemini-2.5-pro")
     with open(schema_file, "r", encoding="utf-8") as f:
         schema_text = f.read()
+    # Determine output filenames up front so that caching can be applied.  The
+    # project name is derived from the schema filename; we strip the
+    # ``_schema`` suffix to avoid redundant naming.
+    project_name = os.path.splitext(os.path.basename(schema_file))[0].replace("_schema", "")
+    screenplay_dir = os.path.join("output", "screenplay")
+    storyboard_dir = os.path.join("output", "storyboard_text")
+    os.makedirs(screenplay_dir, exist_ok=True)
+    os.makedirs(storyboard_dir, exist_ok=True)
+    screenplay_filename = os.path.join(screenplay_dir, f"{project_name}_screenplay.txt")
+    storyboard_filename = os.path.join(storyboard_dir, f"{project_name}_storyboard.txt")
+    # If both screenplay and storyboard already exist, return them to avoid
+    # re‑generating content.  This allows the pipeline to resume without
+    # incurring additional model calls.
+    if os.path.exists(screenplay_filename) and os.path.exists(storyboard_filename):
+        print(f"Reusing cached screenplay and storyboard for {project_name}")
+        return screenplay_filename, storyboard_filename
+
     screenplay_prompt = f"""
     Based on the following narrative schema, write a detailed screenplay. The screenplay should be formatted correctly, with scene headings, character names, dialogue, and action descriptions.
 
@@ -121,13 +138,6 @@ def generate_screenplay_and_storyboard(schema_file: str, project: str, location:
         storyboard_prompt
     ], generation_config=storyboard_config, stream=True)
     storyboard = "".join([r.text for r in storyboard_responses])
-    project_name = os.path.splitext(os.path.basename(schema_file))[0].replace("_schema", "")
-    screenplay_dir = os.path.join("output", "screenplay")
-    storyboard_dir = os.path.join("output", "storyboard_text")
-    os.makedirs(screenplay_dir, exist_ok=True)
-    os.makedirs(storyboard_dir, exist_ok=True)
-    screenplay_filename = os.path.join(screenplay_dir, f"{project_name}_screenplay.txt")
-    storyboard_filename = os.path.join(storyboard_dir, f"{project_name}_storyboard.txt")
     with open(screenplay_filename, "w", encoding="utf-8") as f:
         f.write(screenplay)
     with open(storyboard_filename, "w", encoding="utf-8") as f:
@@ -242,6 +252,14 @@ def synthesize_video_from_storyboard(storyboard_file: str, project: str, locatio
     """
     with open(storyboard_file, "r", encoding="utf-8") as f:
         storyboard_text = f.read()
+    # Determine the output directory and final video file path for caching.
+    output_dir = os.path.join("output", "video_clips")
+    final_output_path = os.path.join(output_dir, "combined_video.mp4")
+    # If the final video already exists, return it immediately to avoid
+    # re‑synthesizing the entire storyboard.
+    if os.path.exists(final_output_path):
+        print(f"Reusing cached synthesized video at {final_output_path}")
+        return final_output_path
     shot_regex = re.compile(r"SCENE\s+(\d+),\s*SHOT\s+(\d+):\n(.*?)(?=\nSCENE|\Z)", re.DOTALL)
     matches = shot_regex.findall(storyboard_text)
     shots_by_scene: dict[int, list[tuple[int, str]]] = defaultdict(list)
@@ -256,7 +274,7 @@ def synthesize_video_from_storyboard(storyboard_file: str, project: str, locatio
             scene_num = idx // 10 + 1
             shot_num = idx % 10 + 1
             shots_by_scene[scene_num].append((shot_num, desc))
-    output_dir = os.path.join("output", "video_clips")
+    # Ensure the video clips directory exists for intermediate files.
     os.makedirs(output_dir, exist_ok=True)
     scene_video_paths: list[str] = []
     for scene_num, scene_shots in sorted(shots_by_scene.items()):
@@ -304,6 +322,13 @@ def generate_soundtrack_for_project(schema_file: str, project: str, location: st
     """Generate soundtracks for each scene based on the narrative schema."""
     output_dir = os.path.join("output", "soundtracks")
     os.makedirs(output_dir, exist_ok=True)
+    # If the directory already contains one or more audio files, assume
+    # the soundtrack has been generated previously and reuse the cached
+    # directory.  This avoids unnecessary calls to the music generation model.
+    existing_files = [f for f in os.listdir(output_dir) if f.lower().endswith((".mp3", ".wav"))]
+    if existing_files:
+        print(f"Reusing cached soundtracks in {output_dir}")
+        return output_dir
     generate_soundtrack(project, location, schema_file, output_dir)
     return output_dir
 
@@ -314,6 +339,10 @@ def generate_voiceover_for_project(screenplay_file: str, project: str) -> Option
     os.makedirs(output_dir, exist_ok=True)
     base_name = os.path.splitext(os.path.basename(screenplay_file))[0]
     output_path = os.path.join(output_dir, f"{base_name}_voiceover.mp3")
+    # If the voice‑over MP3 already exists, reuse it instead of regenerating.
+    if os.path.exists(output_path):
+        print(f"Reusing cached voiceover at {output_path}")
+        return output_path
     generate_voiceover(project, screenplay_file, output_path)
     return output_path
 
@@ -328,5 +357,10 @@ def assemble_final_film(
     output_dir = os.path.join("output", "final_film")
     os.makedirs(output_dir, exist_ok=True)
     output_filename = f"{project}_final_film.mp4"
+    final_path = os.path.join(output_dir, output_filename)
+    # If the final film already exists, return it immediately to avoid reassembly.
+    if os.path.exists(final_path):
+        print(f"Reusing cached final film at {final_path}")
+        return final_path
     assemble_film(video_clips_dir, voiceover_dir, soundtrack_dir, output_dir, output_filename)
-    return os.path.join(output_dir, output_filename)
+    return final_path

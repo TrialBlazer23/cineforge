@@ -189,3 +189,66 @@ def update_step(
     state["updated_at"] = now
     save_project(project_name, state)
     return state
+
+# -----------------------------------------------------------------------------
+# Helper functions to derive a project name from various types of input files.
+#
+# These helpers are used by Celery tasks to map filenames back to the
+# appropriate project identifier.  They mirror functionality from the
+# original cineforge implementation, but were omitted in the initial
+# refactor.  We add them here for backwards compatibility.
+
+def derive_project_name_from_story_file(story_file: str) -> str:
+    """Derive the project name from a raw story file.
+
+    The project name is simply the base filename without its extension.
+
+    Parameters
+    ----------
+    story_file: str
+        Path to a plain text story file.
+
+    Returns
+    -------
+    str
+        The inferred project name.
+    """
+    return os.path.splitext(os.path.basename(story_file))[0]
+
+
+def derive_project_name_from_schema_file(schema_file: str) -> str:
+    """Derive the project name from a narrative schema file.
+
+    Removes the ``_schema`` suffix and file extension from the filename.
+
+    Parameters
+    ----------
+    schema_file: str
+        Path to the generated narrative schema JSON file.
+
+    Returns
+    -------
+    str
+        The inferred project name.
+    """
+    base = os.path.splitext(os.path.basename(schema_file))[0]
+    return base.replace("_schema", "")
+
+
+def derive_project_name_from_storyboard_file(storyboard_file: str) -> str:
+    """Derive the project name from a storyboard text file.
+
+    Removes the ``_storyboard`` suffix and file extension from the filename.
+
+    Parameters
+    ----------
+    storyboard_file: str
+        Path to the generated storyboard text file.
+
+    Returns
+    -------
+    str
+        The inferred project name.
+    """
+    base = os.path.splitext(os.path.basename(storyboard_file))[0]
+    return base.replace("_storyboard", "")
