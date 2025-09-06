@@ -41,29 +41,37 @@ def generate_environment_plate(location_name, project, gcp_location, style_profi
         print(f"Error generating environment plate for {location_name}: {e}")
         return None
 
-def main():
-    parser = argparse.ArgumentParser(description="Generate environment plates from a narrative schema.")
-    parser.add_argument("schema_file", help="The path to the narrative schema JSON file.")
-    utils.add_vertex_args(parser)
-    utils.add_style_args(parser)
-    args = parser.parse_args()
 
+def generate_environments(schema_file, project, gcp_location):
     try:
-        with open(args.schema_file, "r") as f:
+        with open(schema_file, "r") as f:
             narrative_schema = json.load(f)
     except FileNotFoundError as e:
         print(f"Error: {e}")
         return
 
-    style_profile = utils.resolve_style_profile(args.style_profile, args.legacy_style)
+    style_profile = utils.resolve_style_profile(None, None)
 
     locations = list(set(scene.get("setting") for scene in narrative_schema.get("scenes", [])))
     for scene_location in locations:
         if not scene_location:
             continue
-        generate_environment_plate(scene_location, args.project, args.location, style_profile)
+        generate_environment_plate(scene_location, project, gcp_location, style_profile)
 
     print("\nEnvironment plate generation complete.")
+
+
+def main():
+    parser = argparse.ArgumentParser(
+        description="Generate environment plates from a narrative schema."
+    )
+    parser.add_argument("schema_file", help="The path to the narrative schema JSON file.")
+    utils.add_vertex_args(parser)
+    utils.add_style_args(parser)
+    args = parser.parse_args()
+
+    generate_environments(args.schema_file, args.project, args.location)
+
 
 if __name__ == "__main__":
     main()

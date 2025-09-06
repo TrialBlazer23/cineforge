@@ -8,6 +8,12 @@ from api import (
     generate_screenplay_and_storyboard,
     synthesize_video_from_storyboard,
 )
+from src.regenerate_shot import regenerate_storyboard_image
+from src.delete_shot import delete_shot
+from src.generate_scene import generate_scene as generate_scene_func
+from src.generate_characters import generate_characters
+from src.generate_environments import generate_environments
+from src.generate_storyboard_images import generate_storyboard_images
 
 def main():
     """Main function to run the narrative-to-video pipeline."""
@@ -43,21 +49,32 @@ def main():
         try:
             with open(storyboard_file, "r") as f:
                 storyboard_content = f.read()
-            shot_regex = re.compile(r"SCENE " + scene_number + r", SHOT " + shot_number + r":\n(.*?)(?=\nSCENE|\Z)", re.DOTALL)
+            shot_regex = re.compile(
+                r"SCENE " + scene_number + r", SHOT " + shot_number + r":\n(.*?)(?=\nSCENE|\Z)",
+                re.DOTALL,
+            )
             shot_description = shot_regex.search(storyboard_content).group(1).strip()
-            os.system(f'''python3 src/regenerate_shot.py {scene_number} {shot_number} "{shot_description}" --project={args.project} --location={args.location}''')
+            regenerate_storyboard_image(
+                shot_description,
+                int(scene_number),
+                int(shot_number),
+                args.project,
+                args.location,
+            )
         except (FileNotFoundError, AttributeError) as e:
-            print(f"Error: Could not find shot {shot_number} in scene {scene_number} of {storyboard_file}. {e}")
+            print(
+                f"Error: Could not find shot {shot_number} in scene {scene_number} of {storyboard_file}. {e}"
+            )
         return
 
     if args.delete_shot:
         scene_number, shot_number = args.delete_shot
-        os.system(f"python3 src/delete_shot.py {scene_number} {shot_number}")
+        delete_shot(int(scene_number), int(shot_number))
         return
 
     if args.generate_scene:
         print(f"\nGenerating scene {args.generate_scene}...")
-        os.system(f"python3 src/generate_scene.py {storyboard_file} {args.generate_scene} --project={args.project} --location={args.location}")
+        generate_scene_func(storyboard_file, int(args.generate_scene), args.project, args.location)
         return
 
     # Step 1: Narrative Deconstruction
@@ -75,13 +92,13 @@ def main():
 
     # Step 3: Visual Asset Generation
     print("\nGenerating character portraits...")
-    os.system(f"python3 src/generate_characters.py {schema_file} --project={args.project} --location={args.location}")
+    generate_characters(schema_file, args.project, args.location)
 
     print("\nGenerating environment plates...")
-    os.system(f"python3 src/generate_environments.py {schema_file} --project={args.project} --location={args.location}")
+    generate_environments(schema_file, args.project, args.location)
 
     print("\nGenerating storyboard images...")
-    os.system(f"python3 src/generate_storyboard_images.py {storyboard_file} --project={args.project} --location={args.location}")
+    generate_storyboard_images(storyboard_file, schema_file, args.project, args.location)
     print("Visual assets generated.")
 
     # Step 4: Video Synthesis (Placeholder)
